@@ -1,25 +1,50 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 
-function App() {
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import Home from './pages/Home';
+
+function Header() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <header style={{ padding: '1rem', borderBottom: '1px solid #ddd' }}>
+      <SignedOut>
+        <SignInButton />
+      </SignedOut>
+      <SignedIn>
+        <UserButton />
+      </SignedIn>
+    </header>
   );
 }
 
-export default App;
+function AuthRedirect() {
+  const { isSignedIn } = useUser();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isSignedIn) {
+      localStorage.clear();
+      navigate('/profile');
+    }
+  }, [isSignedIn, navigate]);
+
+  return null;
+}
+
+export default function App() {
+  return (
+    <>
+      <Router>
+        <Header />
+        <AuthRedirect />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+        </Routes>
+      </Router>
+    </>
+  );
+}
