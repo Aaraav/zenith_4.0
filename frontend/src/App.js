@@ -1,50 +1,59 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
+import HomeSession from './pages/Room/HomeSession';
 import Home from './pages/Home';
+import Room from './pages/Room/Room';
+import Profile from './pages/Profile';
+import { RoomDetailsProvider } from './RoomContext';
 
 function Header() {
   return (
-    <header style={{ padding: '1rem', borderBottom: '1px solid #ddd' }}>
+    <header className="p-4 border-b border-gray-300 flex justify-end">
       <SignedOut>
-        <SignInButton />
+        <SignInButton mode="modal" />
       </SignedOut>
       <SignedIn>
-        <UserButton />
+        <UserButton afterSignOutUrl="/" />
       </SignedIn>
     </header>
   );
 }
 
-function AuthRedirect() {
-  const { isSignedIn } = useUser();
-  const navigate = useNavigate();
+function ProtectedRoute({ children }) {
+  const { isSignedIn, isLoaded } = useUser();
 
-  useEffect(() => {
-    if (isSignedIn) {
-      localStorage.clear();
-      navigate('/profile');
-    }
-  }, [isSignedIn, navigate]);
+  if (!isLoaded) return null;
 
-  return null;
+  return isSignedIn ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
   return (
-    <>
+    <RoomDetailsProvider>
       <Router>
         <Header />
-        <AuthRedirect />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/room/:roomId"
+            element={
+              <ProtectedRoute>
+                <Room />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
-    </>
+    </RoomDetailsProvider>
   );
 }
