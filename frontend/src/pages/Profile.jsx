@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import { useUser } from "@clerk/clerk-react";
+import axios from "axios";
 
 export default function Profile() {
   const { isSignedIn, user } = useUser();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
   const [isUserSaved, setIsUserSaved] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,16 +25,19 @@ export default function Profile() {
           createdAt: user.createdAt,
         };
 
-        localStorage.setItem('clerkId', user.id);
-        localStorage.setItem('userData', JSON.stringify(userData));
+        localStorage.setItem("clerkId", user.id);
+        localStorage.setItem("userData", JSON.stringify(userData));
 
-        const response = await axios.post('http://localhost:4000/api/users/save-user', userData);
+        const response = await axios.post(
+          "http://localhost:4000/api/users/save-user",
+          userData
+        );
         if (response.data.success) {
           setIsUserSaved(true);
           setUsername(user.username);
         }
       } catch (error) {
-        console.error('Error saving user data:', error);
+        console.error("Error saving user data:", error);
       }
     };
 
@@ -45,27 +48,30 @@ export default function Profile() {
 
   // Fetch updated user data using clerkId from localStorage
   const fetchUpdatedUserData = async () => {
-    const storedClerkId = localStorage.getItem('clerkId');
+    const storedClerkId = localStorage.getItem("clerkId");
     if (!storedClerkId) return;
 
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:4000/api/users/getUser/${localStorage.getItem('clerkId')}`);
+      const response = await axios.get(
+        `http://localhost:4000/api/users/getUser/${localStorage.getItem(
+          "clerkId"
+        )}`
+      );
       if (response.data.success) {
         setUsername(response.data.user.username);
       }
     } catch (err) {
-      setError('Error fetching updated user data');
-      console.error('Error fetching user data:', err);
+      setError("Error fetching updated user data");
+      console.error("Error fetching user data:", err);
     } finally {
       setLoading(false);
     }
   };
 
-
   // Load username from localStorage on initial render
   useEffect(() => {
-    const storedUserData = localStorage.getItem('userData');
+    const storedUserData = localStorage.getItem("userData");
     if (storedUserData) {
       const parsedData = JSON.parse(storedUserData);
       setUsername(parsedData.username);
@@ -77,21 +83,24 @@ export default function Profile() {
   };
 
   const handleUsernameSubmit = async () => {
-    const storedUserData = localStorage.getItem('userData');
+    const storedUserData = localStorage.getItem("userData");
     if (!storedUserData) return;
 
     const parsedUser = JSON.parse(storedUserData);
     const updatedData = { ...parsedUser, username };
-
+    console.log(updatedData);
     try {
-      const response = await axios.put('http://localhost:4000/api/users/update-username', updatedData);
+      const response = await axios.put(
+        "http://localhost:4000/api/users/update-username",
+        updatedData
+      );
       if (response.data.success) {
-        localStorage.setItem('userData', JSON.stringify(updatedData)); // update localStorage
+        localStorage.setItem("userData", JSON.stringify(updatedData)); // update localStorage
         fetchUpdatedUserData();
         setIsEditing(false);
       }
     } catch (error) {
-      console.error('Error updating username:', error);
+      console.error("Error updating username:", error);
     }
   };
 
@@ -105,7 +114,9 @@ export default function Profile() {
 
   return (
     <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-md">
-      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">👤 Profile</h1>
+      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
+        👤 Profile
+      </h1>
       <div className="flex justify-center mb-4">
         <img
           src={user.imageUrl}
@@ -116,7 +127,7 @@ export default function Profile() {
 
       <div className="text-gray-700 space-y-3 text-lg">
         <div>
-          <span className="font-semibold">Username:</span>{' '}
+          <span className="font-semibold">Username:</span>{" "}
           {isEditing ? (
             <input
               type="text"
@@ -128,9 +139,17 @@ export default function Profile() {
             <span>{username}</span>
           )}
         </div>
-        <p><span className="font-semibold">Full Name:</span> {user.fullName}</p>
-        <p><span className="font-semibold">Email:</span> {user.primaryEmailAddress?.emailAddress}</p>
-        <p><span className="font-semibold">Created At:</span> {new Date(user.createdAt).toLocaleString()}</p>
+        <p>
+          <span className="font-semibold">Full Name:</span> {user.fullName}
+        </p>
+        <p>
+          <span className="font-semibold">Email:</span>{" "}
+          {user.primaryEmailAddress?.emailAddress}
+        </p>
+        <p>
+          <span className="font-semibold">Created At:</span>{" "}
+          {new Date(user.createdAt).toLocaleString()}
+        </p>
       </div>
 
       {loading && (
@@ -140,9 +159,7 @@ export default function Profile() {
       )}
 
       {error && (
-        <div className="text-center mt-4 text-lg text-red-500">
-          {error}
-        </div>
+        <div className="text-center mt-4 text-lg text-red-500">{error}</div>
       )}
 
       {isEditing ? (
