@@ -90,7 +90,7 @@ function Compiler() {
   }
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "20px",width:'50%' }}>
       <div style={{ marginBottom: "10px" }}>
         <button onClick={toggleTheme} disabled={!isEditorReady}>
           Toggle Theme
@@ -113,6 +113,7 @@ function Compiler() {
 
       <Editor
         height="60vh"
+        width={"50vw"}
         theme={theme}
         language={language === "cpp" ? "cpp" : language}
         loading={<Loader />}

@@ -97,9 +97,9 @@ const Room = ({socket,socketId}) => {
   return (
     <div className="relative w-screen h-screen flex">
       <div ref={containerRef} className="w-[50vw] h-full" />
-        <div className='flex flex-wrap bg-gray-100 w-[50vw]'>
-            <div className='flex flex-wrap w-full'><Compiler/></div>
-        <div className="w-full p-6  overflow-y-auto">
+        <div className='flex flex-wrap bg-gray-100 w-[50vw] '>
+            
+        <div className="w-full h-[50vh] p-6  overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">AI CP/DSA Questions</h2>
 
             <button
@@ -121,6 +121,7 @@ const Room = ({socket,socketId}) => {
             ))}
             </ul>
         </div>
+        <div className='flex flex-wrap h-[50vh] w-full bg-red-500'><Compiler/></div>
       </div>
     </div>
   );
