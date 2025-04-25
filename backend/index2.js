@@ -1,5 +1,5 @@
+require('dotenv').config();
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -7,15 +7,29 @@ const http = require('http');
 const { Server } = require("socket.io");
 const User = require('./models/User');
 
-dotenv.config();
+// Express app setup
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 // MongoDB connection
-mongoose.connect("mongodb+srv://aaraav2810:aaraav2810@zenith.mzeyjhr.mongodb.net/zenith");
-  
+mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://aaraav2810:aaraav2810@zenith.mzeyjhr.mongodb.net/zenith")
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// Setup Express & HTTP server
-const app = express();
+// Routes
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
+// Test route
+app.get('/', (req, res) => {
+  res.send('Zenith Coding Platform API');
+});
+
+// Create HTTP server
 const server = http.createServer(app);
+
+// Socket.IO setup
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -23,25 +37,13 @@ const io = new Server(server, {
   }
 });
 
-const PORT = 5000;
-app.use(cors());
-app.use(express.json());
+// Gemini AI setup
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyASaYDYt5VNobHpcpsm3ngIUn1rD49UJgM");
 
-// Routes
-const userRoutes = require('./routes/userRoutes');
-app.use('/api/users', userRoutes);
-
-// Test API
-app.get('/', (req, res) => {
-  res.send('API is running...');
-});
-
-// Google Gemini AI"
-const genAI = new GoogleGenerativeAI("AIzaSyASaYDYt5VNobHpcpsm3ngIUn1rD49UJgM");
-
-// Matchmaking logic
+// Queue for matchmaking
 let waitingUsers = [];
 
+// Helper to find a match
 function findMatch(newUser) {
   return waitingUsers.find(
     u =>
@@ -51,11 +53,12 @@ function findMatch(newUser) {
   );
 }
 
+// Handle sockets
 io.on("connection", (socket) => {
   console.log("🟢 User connected:", socket.id);
 
-  // Matchmaking
-  socket.on("joinQueue", ({ username, topic, averageRating }) => {
+  // Join queue event
+  socket.on("joinQueue", async ({ username, topic, averageRating }) => {
     console.log(`${username} joined queue on ${topic} [Rating: ${averageRating}]`);
     
     const newUser = { socketId: socket.id, username, topic, averageRating };
@@ -63,63 +66,98 @@ io.on("connection", (socket) => {
 
     if (match) {
       waitingUsers = waitingUsers.filter(u => u.username !== match.username);
+      const roomId = `${match.username}_${newUser.username}_${Date.now()}`;
 
-      const roomId = `${match.username}_${newUser.username}_${Math.floor(100000 + Math.random() * 900000)}`;
       socket.join(roomId);
       io.sockets.sockets.get(match.socketId)?.join(roomId);
 
       console.log(`✅ Room ${roomId} created between ${match.username} and ${newUser.username}`);
 
-      io.to(roomId).emit("roomJoined", { roomId, users: [match.username, newUser.username] });
+      io.to(roomId).emit("roomJoined", { 
+        roomId, 
+        users: [match.username, newUser.username] 
+      });
 
-      // Auto-generate question for matched users
-      generateQuestion(match.username, newUser.username, roomId);
+      // Generate initial question
+      const question = await generateQuestion(match.username, newUser.username, roomId);
+      console.log("question",question);
+      if (question) {
+        io.to(roomId).emit("question-generated", question);
+      }
     } else {
       waitingUsers.push(newUser);
     }
   });
 
-  // Manually trigger question generation
-//   socket.on("generate-question", async ({ user1, user2, room }) => {
-//     await generateQuestion(user1, user2, room);
-//   });
+//   Generate question manually
+  socket.on("generate-question", async ({ user1, user2, room }) => {
+    console.log(`Generating question for ${user1} and ${user2} in room ${room}`);
+    const question = await generateQuestion(user1, user2, room);
+    // console.log("question",question);
+    io.to(room).emit("question-generated", question);
 
+    if (question) {
+        console.log("lll",question);
+    }
+  });
+
+  // Disconnect event
   socket.on("disconnect", () => {
     console.log("🔴 User disconnected:", socket.id);
     waitingUsers = waitingUsers.filter(u => u.socketId !== socket.id);
   });
 });
 
-// Generate AI-based questions
+// Question generation logic
 async function generateQuestion(user1, user2, room) {
-    try {
-      const r1 = await User.findOne({ username: user1 });
-      const r2 = await User.findOne({ username: user2 });
-  
-      if (!r1 || !r2) {
-        console.log("❌ One or both users not found");
-        io.to(room).emit("questionError", { error: "User(s) not found." });
-        return;
-      }
-  
-      const avgRating = (r1.rating + r2.rating) / 2;
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-  
-      const prompt = `Generate a competitive programming or DSA problem similar to Codeforces/LeetCode, with 2 sample test cases, suitable for average rating ${avgRating}.`;
-  
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-  
-      io.to(room).emit("question-response", { question: text });
-      console.log(`📤 Sent question to room: ${room}`);
-  
-    } catch (err) {
-      console.error("❌ Error generating question:", err);
-      io.to(room).emit("questionError", { error: "Failed to generate questions." });
+  try {
+    const [r1, r2] = await Promise.all([
+      User.findOne({ username: user1 }),
+      User.findOne({ username: user2 })
+    ]);
+
+    if (!r1 || !r2) {
+      console.log("❌ One or both users not found");
+      io.to(room).emit("questionError", { error: "User(s) not found." });
+      return null;
     }
+
+    const avgRating = (r1.rating + r2.rating) / 2;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // const userTopics = (r1.topics?.length ? r1.topics : r2.topics?.length ? r2.topics : ['Data Structures']);
+    // const primaryTopic = userTopics[0] || 'Data Structures';
+
+    const prompt = `Generate a competitive programming problem with these requirements:
+- Difficulty suitable for programmers with average rating ${avgRating.toFixed(1)}
+- Include problem statement with clear input/output requirements
+- Provide 2 sample test cases with explanations
+- Format similar to Codeforces/LeetCode problems
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    // console.log("text",text);
+
+    return {
+      question: text,
+      timestamp: new Date().toISOString(),
+      roomId: room,
+      users: [user1, user2]
+    };
+
+  } catch (err) {
+    console.error("❌ Error generating question:", err);
+    io.to(room).emit("questionError", { 
+      error: "Failed to generate question. Please try again.",
+      roomId: room
+    });
+    return null;
   }
-  
+}
+
 // Start server
+const PORT = 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

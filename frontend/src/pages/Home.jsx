@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 
-const socket = io('http://localhost:5000'); // Change if needed
-
-export default function Home() {
+export default function Home({ socketId, socket }) {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('DSA');
@@ -25,17 +22,25 @@ export default function Home() {
       setName('Guest');
     }
 
-    socket.on('roomJoined', ({ roomId, users }) => {
-      console.log(`🎉 Matched and joined room: ${roomId} with users:`, users);
-      const hasTwoUsersWithNames = users.filter(u => u.username).length === 2;
+    // Listen for roomJoined event from the server
+    if (socket) {
+      socket.on('roomJoined', ({ roomId, users }) => {
+        console.log(`🎉 Matched and joined room: ${roomId} with users:`, users);
+        const hasTwoUsersWithNames = users.filter(u => u.username).length === 2;
+        localStorage.setItem('socketId', socket.id); // Store socketId for future use
+        setRoomId(roomId); // Store roomId to conditionally show matched message
+        setMatchedMsg(`🎉 You have been matched with a user! Room ID: ${roomId}`);
+        navigate(`/room/${roomId}`);
+      });
+    }
 
-      navigate(`/room/${roomId}`);
-    });
-
+    // Cleanup the socket listener when component unmounts
     return () => {
-      socket.off('roomJoined');
+      if (socket) {
+        socket.off('roomJoined');
+      }
     };
-  }, [navigate]);
+  }, [socket, navigate]); // Dependency on socket to re-run when socket is initialized
 
   useEffect(() => {
     if (ratings.length > 0) {
@@ -52,38 +57,21 @@ export default function Home() {
       return;
     }
 
-    localStorage.setItem('selectedTopic',selectedTopic);
+    localStorage.setItem('selectedTopic', selectedTopic);
 
-    socket.emit('joinQueue', {
-      username: name,
-      topic: selectedTopic,
-      averageRating,
-    });
+    if (socket) {
+      socket.emit('joinQueue', {
+        username: name,
+        topic: selectedTopic,
+        averageRating,
+        socketId, // Pass the socketId when emitting data
+      });
+    }
   };
 
   return (
     <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-md">
       <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">🎮 Select Topic</h1>
-
-      <div className="mb-4">
-        {/* <label htmlFor="topic" className="block text-lg font-semibold mb-2">Choose a Topic:</label> */}
-        {/* <select
-          id="topic"
-          value={selectedTopic}
-          onChange={e => setSelectedTopic(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-        >
-          <option value="">Select a topic</option>
-          <option value="ML">ML</option>
-          <option value="DSA">DSA</option>
-          <option value="System Design">System Design</option>
-          <option value="JavaScript">JavaScript</option>
-          <option value="Python">Python</option>
-          <option value="Java">Java</option>
-          <option value="C++">C++</option>
-          <option value="Other">Other</option>
-        </select> */}
-      </div>
 
       <div className="text-center mt-10 text-xl font-bold">
         Hello, {name || 'Guest'}!

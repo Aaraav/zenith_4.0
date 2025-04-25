@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+import io from 'socket.io-client';
 
 import HomeSession from './pages/Room/HomeSession';
 import Home from './pages/Home';
@@ -30,17 +31,39 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
+  const [socketId, setSocketId] = useState(null);
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    // Initialize socket connection
+    const socketConnection = io('http://localhost:5000');  // Replace with your socket server URL
+    setSocket(socketConnection);
+
+    // Get the socketId once the socket connects
+    socketConnection.on('connect', () => {
+      setSocketId(socketConnection.id);
+      console.log(`Socket connected with ID: ${socketConnection.id}`);
+    });
+
+    // Cleanup the socket connection on component unmount
+    return () => {
+      if (socketConnection) {
+        socketConnection.disconnect();
+      }
+    };
+  }, []);
+
   return (
     <RoomDetailsProvider>
       <Router>
         <Header />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home socketId={socketId} socket={socket} />} />
           <Route
             path="/room/:roomId"
             element={
               <ProtectedRoute>
-                <Room />
+                <Room socketId={socketId} socket={socket} />
               </ProtectedRoute>
             }
           />
@@ -48,7 +71,7 @@ export default function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <Profile />
+                <Profile socketId={socketId} socket={socket} />
               </ProtectedRoute>
             }
           />
