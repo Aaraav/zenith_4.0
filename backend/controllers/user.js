@@ -1,6 +1,5 @@
-const User = require('../models/User');  // Use require instead of import
+const User = require('../models/User');  
 
-// Save user data in the database
 const saveUser = async (req, res) => {
   const { clerkId, username, fullName, email, imageUrl, createdAt } = req.body;
 
@@ -20,7 +19,6 @@ const saveUser = async (req, res) => {
   }
 };
 
-// Get user data by clerkId
 const getUser = async (req, res) => {
   const { clerkId } = req.params;  // Get the clerkId from the request parameters
 
@@ -38,7 +36,6 @@ const getUser = async (req, res) => {
   }
 };
 
-// Update username of an existing user
 const updateUsername = async (req, res) => {
   const { clerkId, username } = req.body;
 
@@ -49,7 +46,7 @@ const updateUsername = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    user.username = username; // Update the username
+    user.username = username; 
     await user.save();
 
     return res.status(200).json({ success: true, message: 'Username updated successfully', user });
@@ -59,5 +56,4 @@ const updateUsername = async (req, res) => {
   }
 };
 
-// Export the functions using CommonJS
 module.exports = { saveUser, updateUsername, getUser };
