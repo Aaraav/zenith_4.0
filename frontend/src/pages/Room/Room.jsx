@@ -64,38 +64,7 @@ const Room = ({socket,socketId}) => {
   }, [roomId, socket, socketId]);
 
 
-//   const submitCode = async () => {
-//     try {
-//         const response = await fetch('http://localhost:4000/evaluate-code', {
-//             method: 'POST',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             },
-//             body: JSON.stringify({
-//                 code,
-//                 roomId,
-//                 user1,
-//                 user2,
-//             }),
-//         });
 
-//         if (!response.ok) {
-//             // Handle non-OK responses (e.g., 404 or 500 errors)
-//             const errorText = await response.text();
-//             console.error('Error:', errorText);
-//             alert('Failed to get code rating. Please try again.');
-//             return;
-//         }
-
-//         const data = await response.json();
-//         alert(`Your rating: ${JSON.stringify(data.user1.rating)}, Opponent's rating: ${JSON.stringify(data.user2.rating)}`);
-//     } catch (error) {
-//         console.error('Error evaluating code:', error);
-//         alert('Failed to get code rating.');
-//     }
-// };
-
-  
 useEffect(() => {
   const savedQuestions = localStorage.getItem('questions');
   if (savedQuestions) {
@@ -159,13 +128,7 @@ useEffect(() => {
             <h2 className="text-xl font-bold mb-4">AI CP/DSA Questions</h2>
             
 
-            {/* <button
-            onClick={generateQuestion}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4"
-            disabled={loading}
-            >
-            {loading ? 'Generating...' : 'Generate Questions'}
-            </button> */}
+         
 
             <ul className="space-y-4">
             {questions.map((q, index) => (
