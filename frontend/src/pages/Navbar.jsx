@@ -20,14 +20,7 @@ export default function Navbar() {
     <>
       {isSignedIn && (
         <nav className="bg-white-200 shadow-md p-4 flex flex-wrap">
-          {/* <header style={{ padding: "1rem", borderBottom: "1px solid #ddd" }}>
-        <SignedOut>
-          <SignInButton />
-        </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
-      </header> */}
+      
           <ul className="flex space-x-6  flex-wrap ">
             <li className=" right-6 absolute ">
               <SignedOut>
@@ -46,12 +39,7 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
-              {/* <Link
-                to="/dashboard"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Dashboard
-              </Link> */}
+            
             </li>
             <li>
               <Link
@@ -64,13 +52,7 @@ export default function Navbar() {
           </ul>
         </nav>
       )}
-      {/* {!isSignedIn && (
-        <div>
-          <SignedOut>
-            <SignInButton />
-          </SignedOut>
-        </div>
-      )} */}
+    
     </>
   );
 }
