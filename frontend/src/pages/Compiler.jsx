@@ -19,25 +19,25 @@ const navigate=useNavigate();
 
   const pyodideRef = useRef(null);
 
-  useEffect(() => {
-    let startTime = localStorage.getItem("questionStartTime");
-    if (!startTime) {
-      startTime = Date.now();
-      localStorage.setItem("questionStartTime", startTime);
-    }
+  // useEffect(() => {
+  //   let startTime = localStorage.getItem("questionStartTime");
+  //   if (!startTime) {
+  //     startTime = Date.now();
+  //     localStorage.setItem("questionStartTime", startTime);
+  //   }
   
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const diffInSeconds = Math.floor((now - parseInt(startTime)) / 1000);
-      setElapsedTime(diffInSeconds);
+  //   const interval = setInterval(() => {
+  //     const now = Date.now();
+  //     const diffInSeconds = Math.floor((now - parseInt(startTime)) / 1000);
+  //     setElapsedTime(diffInSeconds);
   
-      if (diffInSeconds >= 1800) { // 30 minutes = 1800 seconds
-        navigate("/");
-      }
-    }, 1000);
+  //     if (diffInSeconds >= 1800) { // 30 minutes = 1800 seconds
+  //       navigate("/");
+  //     }
+  //   }, 1000);
   
-    return () => clearInterval(interval);
-  }, [navigate]);
+  //   return () => clearInterval(interval);
+  // }, [navigate]);
   
 
   const formatTime = (seconds) => {
