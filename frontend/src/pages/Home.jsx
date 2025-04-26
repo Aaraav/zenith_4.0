@@ -71,7 +71,7 @@ export default function Home({ socketId, socket }) {
 
   return (
     <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-md">
-      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">🎮 Select Topic</h1>
+      <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Start Competing</h1>
 
       <div className="text-center mt-10 text-xl font-bold">
         Hello, {name || 'Guest'}!

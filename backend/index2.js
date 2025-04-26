@@ -129,10 +129,11 @@ async function generateQuestion(user1, user2, room) {
     // const primaryTopic = userTopics[0] || 'Data Structures';
 
     const prompt = `Generate a competitive programming problem with these requirements:
-- Difficulty suitable for programmers with average rating ${avgRating.toFixed(1)}
+- Difficulty suitable for programmers with average rating ${avgRating.toFixed(1)} in form of html code for frontend website in tamil
 - Include problem statement with clear input/output requirements
 - Provide 2 sample test cases with explanations
 - Format similar to Codeforces/LeetCode problems
+
 `;
 
     const result = await model.generateContent(prompt);

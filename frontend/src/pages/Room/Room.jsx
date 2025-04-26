@@ -5,18 +5,22 @@ import { useRoomDetails } from '../../RoomContext';  // Import the context
 import Compiler from '../Compiler';  // Default export
 
 const Room = ({socket,socketId}) => {
-//   const { socket, socketId, name, setName, topicSelected, setTopicSelected, rating, setRating } = useRoomDetails();
+//   const { codee } = useRoomDetails();
   const { roomId } = useParams();
+  const [code,setcode]=useState("");
   const containerRef = useRef(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [user1, setUser1] = useState('guest');
   const [user2, setUser2] = useState('guest');
 
+
   useEffect(() => {
+    setcode(localStorage.getItem('code'));
     const [u1, u2] = roomId.split('_');
     setUser1(u1);
     setUser2(u2);
+
 
     if (socket && socketId) {
       socket.emit('join-room', { roomId, socketId });
@@ -24,9 +28,20 @@ const Room = ({socket,socketId}) => {
 
     const handleQuestion = (data) => {
       console.log('📩 Received question:', data);
-      setQuestions((prev) => [...prev, data]);
+    
+      // Update state
+      setQuestions((prev) => {
+        const updatedQuestions = [...prev, data];
+    
+        // Save to localStorage
+        localStorage.setItem('questions', JSON.stringify(updatedQuestions));
+    
+        return updatedQuestions;
+      });
+    
       setLoading(false);
     };
+    
 
     const handleError = (error) => {
       console.error('Error generating question:', error);
@@ -48,7 +63,48 @@ const Room = ({socket,socketId}) => {
     }
   }, [roomId, socket, socketId]);
 
+
+//   const submitCode = async () => {
+//     try {
+//         const response = await fetch('http://localhost:4000/evaluate-code', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 code,
+//                 roomId,
+//                 user1,
+//                 user2,
+//             }),
+//         });
+
+//         if (!response.ok) {
+//             // Handle non-OK responses (e.g., 404 or 500 errors)
+//             const errorText = await response.text();
+//             console.error('Error:', errorText);
+//             alert('Failed to get code rating. Please try again.');
+//             return;
+//         }
+
+//         const data = await response.json();
+//         alert(`Your rating: ${JSON.stringify(data.user1.rating)}, Opponent's rating: ${JSON.stringify(data.user2.rating)}`);
+//     } catch (error) {
+//         console.error('Error evaluating code:', error);
+//         alert('Failed to get code rating.');
+//     }
+// };
+
+  
+useEffect(() => {
+  const savedQuestions = localStorage.getItem('questions');
+  if (savedQuestions) {
+    setQuestions(JSON.parse(savedQuestions));
+  }
+  setLoading(false);
+}, []);
   useEffect(() => {
+    // console.log(codee);
     const initCall = async () => {
       const appId = 1031906663;
       const serverSecret = '9c0f1d8070d5b1618e92ab75c0ffe41a';
@@ -95,20 +151,21 @@ const Room = ({socket,socketId}) => {
   };
 
   return (
-    <div className="relative w-screen h-screen flex">
+    <div className="relative w-screen h-screen flex overflow-hidden">
       <div ref={containerRef} className="w-[50vw] h-full" />
         <div className='flex flex-wrap bg-gray-100 w-[50vw] '>
             
-        <div className="w-full h-[50vh] p-6  overflow-y-auto">
+        <div className=" w-full h-[50vh] p-6  overflow-y-auto border-black border-solid-[1px]">
             <h2 className="text-xl font-bold mb-4">AI CP/DSA Questions</h2>
+            
 
-            <button
+            {/* <button
             onClick={generateQuestion}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4"
             disabled={loading}
             >
             {loading ? 'Generating...' : 'Generate Questions'}
-            </button>
+            </button> */}
 
             <ul className="space-y-4">
             {questions.map((q, index) => (
@@ -121,7 +178,7 @@ const Room = ({socket,socketId}) => {
             ))}
             </ul>
         </div>
-        <div className='flex flex-wrap h-[50vh] w-full bg-red-500'><Compiler/></div>
+        <div className='flex flex-wrap h-[50vh] w-full '><Compiler user1={user1} user2={user2} room={roomId} questions={questions}/></div>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Room from './pages/Room/Room';
 import Profile from './pages/Profile';
 import { RoomDetailsProvider } from './RoomContext';
+import Navbar from './pages/Navbar';
 
 function Header() {
   return (
@@ -56,7 +57,9 @@ export default function App() {
   return (
     <RoomDetailsProvider>
       <Router>
-        <Header />
+        {/* <Header /> */}
+        <Navbar/>
+        
         <Routes>
           <Route path="/" element={<Home socketId={socketId} socket={socket} />} />
           <Route

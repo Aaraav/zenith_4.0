@@ -9,7 +9,7 @@ export const RoomDetailsProvider = ({ children }) => {
   const [rating, setRating] = useState(null);
   const [socket, setSocket] = useState(null);  // To store socket instance
   const [socketId, setSocketId] = useState(null);  // To store socket ID
-
+const [codee,setcodee]=useState("");
   useEffect(() => {
     const socketConnection = io('http://localhost:5000');  // Update with your server URL
 
@@ -36,6 +36,8 @@ export const RoomDetailsProvider = ({ children }) => {
         setRating,
         socket,
         socketId,
+        codee,
+        setcodee
       }}
     >
       {children}
