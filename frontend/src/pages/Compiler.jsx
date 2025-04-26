@@ -1,186 +1,187 @@
-import React, { useState, useEffect, useRef } from "react";
-import Editor from "@monaco-editor/react";
-import { FillSpinner as Loader } from "react-spinners-kit";
-import { useNavigate } from "react-router-dom";
-function Compiler({ user1, user2, room, questions }) {
-  const examples = {
-    javascript: `console.log("Hello, World!");\nconst x = 5 + 10;\nx;`,
-    python: `print("Hello from Pyodide!")\nfor i in range(3):\n  print("Line", i)`,
-    java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, World!");\n  }\n}`,
-    cpp: `#include <iostream>\nusing namespace std;\nint main() {\n  cout << "Hello, World!" << endl;\n  return 0;\n}`,
-  };
-const navigate=useNavigate();
-  const [theme, setTheme] = useState("light");
-  const [language, setLanguage] = useState("javascript");
-  const [code, setCode] = useState(examples.javascript);
-  const [isEditorReady, setIsEditorReady] = useState(false);
-  const [output, setOutput] = useState("");
-  const [elapsedTime, setElapsedTime] = useState(0);
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
+import { useRoomDetails } from '../../RoomContext';  // Import the context
+import Compiler from '../Compiler';  // Default export
 
-  const pyodideRef = useRef(null);
+const Room = ({socket,socketId}) => {
+//   const { codee } = useRoomDetails();
+  const { roomId } = useParams();
+  const [code,setcode]=useState("");
+  const containerRef = useRef(null);
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [user1, setUser1] = useState('guest');
+  const [user2, setUser2] = useState('guest');
 
-  // useEffect(() => {
-  //   let startTime = localStorage.getItem("questionStartTime");
-  //   if (!startTime) {
-  //     startTime = Date.now();
-  //     localStorage.setItem("questionStartTime", startTime);
-  //   }
-  
-  //   const interval = setInterval(() => {
-  //     const now = Date.now();
-  //     const diffInSeconds = Math.floor((now - parseInt(startTime)) / 1000);
-  //     setElapsedTime(diffInSeconds);
-  
-  //     if (diffInSeconds >= 1800) { // 30 minutes = 1800 seconds
-  //       navigate("/");
-  //     }
-  //   }, 1000);
-  
-  //   return () => clearInterval(interval);
-  // }, [navigate]);
-  
 
-  const formatTime = (seconds) => {
-    const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
-    const secs = String(seconds % 60).padStart(2, "0");
-    return `${mins}:${secs}`;
-  };
+  useEffect(() => {
+    setcode(localStorage.getItem('code'));
+    const [u1, u2] = roomId.split('_');
+    setUser1(u1);
+    setUser2(u2);
 
-  const handleEditorDidMount = () => {
-    setIsEditorReady(true);
-  };
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "vs-dark" : "light");
-  };
-
-  const toggleLanguage = () => {
-    const langs = ["javascript", "python", "java", "cpp"];
-    const next = langs[(langs.indexOf(language) + 1) % langs.length];
-    setLanguage(next);
-    setCode(examples[next]);
-    setOutput("");
-  };
-
-  const submitCode = async () => {
-    try {
-      const response = await fetch("http://localhost:4000/evaluate-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          room,
-          user1,
-          user2,
-          questions,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error:", errorText);
-        return;
-      }
-
-      const data = await response.json();
-      console.log(data);
-      // You can show ratings or something based on `data`
-    } catch (error) {
-      console.error("Error evaluating code:", error);
+    if (socket && socketId) {
+      socket.emit('join-room', { roomId, socketId });
     }
-  };
 
-  const runCode = async () => {
-    if (language === "javascript") {
-      const logs = [];
-const originalLog = console.log; // ✅ declared outside
+    const handleQuestion = (data) => {
+      console.log('📩 Received question:', data);
+    
+      // Update state
+      setQuestions((prev) => {
+        const updatedQuestions = [...prev, data];
+    
+        // Save to localStorage
+        localStorage.setItem('questions', JSON.stringify(updatedQuestions));
+    
+        return updatedQuestions;
+      });
+    
+      setLoading(false);
+    };
+    
 
-try {
-  submitCode();
+    const handleError = (error) => {
+      console.error('Error generating question:', error);
+      setQuestions((prev) => [
+        ...prev,
+        { question: '❌ Failed to generate question', timestamp: new Date().toISOString() },
+      ]);
+      setLoading(false);
+    };
 
-  localStorage.setItem('code', code);
-  console.log = (...args) => logs.push(args.join(" "));
-  const result = eval(code);
-  if (result !== undefined) logs.push(result.toString());
-} catch (err) {
-  logs.push(`Error: ${err.message}`);
-} finally {
-  console.log = originalLog; // ✅ always restore it
-  setOutput(logs.join("\n"));
-}
+    if (socket) {
+      socket.on('question-generated', handleQuestion);
+      socket.on('questionError', handleError);
 
-    } else if (language === "python") {
-      if (pyodideRef.current) {
-        try {
-          const result = await pyodideRef.current.runPythonAsync(code);
-          setOutput(result);
-          localStorage.setItem("code", code);
-          await submitCode();
-        } catch (err) {
-          setOutput(`Python Error: ${err.message}`);
-        }
-      } else {
-        setOutput("Pyodide is not ready yet.");
-      }
-    } else {
-      setOutput(`${language.toUpperCase()} execution is not supported yet.`);
+      return () => {
+        socket.off('question-generated', handleQuestion);
+        socket.off('questionError', handleError);
+      };
+    }
+  }, [roomId, socket, socketId]);
+
+
+//   const submitCode = async () => {
+//     try {
+//         const response = await fetch('http://localhost:4000/evaluate-code', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             },
+//             body: JSON.stringify({
+//                 code,
+//                 roomId,
+//                 user1,
+//                 user2,
+//             }),
+//         });
+
+//         if (!response.ok) {
+//             // Handle non-OK responses (e.g., 404 or 500 errors)
+//             const errorText = await response.text();
+//             console.error('Error:', errorText);
+//             alert('Failed to get code rating. Please try again.');
+//             return;
+//         }
+
+//         const data = await response.json();
+//         alert(`Your rating: ${JSON.stringify(data.user1.rating)}, Opponent's rating: ${JSON.stringify(data.user2.rating)}`);
+//     } catch (error) {
+//         console.error('Error evaluating code:', error);
+//         alert('Failed to get code rating.');
+//     }
+// };
+
+  
+useEffect(() => {
+  const savedQuestions = localStorage.getItem('questions');
+  if (savedQuestions) {
+    setQuestions(JSON.parse(savedQuestions));
+  }
+  setLoading(false);
+}, []);
+  useEffect(() => {
+    // console.log(codee);
+    const initCall = async () => {
+      const appId = 1031906663;
+      const serverSecret = '9c0f1d8070d5b1618e92ab75c0ffe41a';
+
+      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+        appId,
+        serverSecret,
+        roomId,
+        Date.now().toString(),
+        'aaraav'
+      );
+
+      const zc = ZegoUIKitPrebuilt.create(kitToken);
+
+      zc.joinRoom({
+        container: containerRef.current,
+        sharedLinks: [
+          {
+            name: 'Copy Link',
+            url: `${window.location.origin}/room/${roomId}`,
+          },
+        ],
+        scenario: {
+          mode: ZegoUIKitPrebuilt.OneONoneCall,
+        },
+      });
+    };
+
+    initCall();
+  }, [roomId]);
+
+  const generateQuestion = () => {
+    console.log('🚀 Generating question for:', { user1, user2, roomId });
+    setLoading(true);
+
+    if (socket) {
+      socket.emit('generate-question', {
+        user1,
+        user2,
+        room: roomId,
+        socketId,
+      });
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <div className="mb-2 relative w-full">
-        <div className="absolute right-[100px] top-2">{formatTime(elapsedTime)}</div>
+    <div className="relative w-screen h-screen flex overflow-hidden">
+      <div ref={containerRef} className="w-[50vw] h-full" />
+        <div className='flex flex-wrap bg-gray-100 w-[50vw] '>
+            
+        <div className=" w-full h-[50vh] p-6  overflow-y-auto border-black border-solid-[1px]">
+            <h2 className="text-xl font-bold mb-4">AI CP/DSA Questions</h2>
+            
 
-        <button
-          onClick={toggleTheme}
-          disabled={!isEditorReady}
-          className={`px-4 py-2 rounded-md font-semibold transition-colors ${
-            isEditorReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-400 cursor-not-allowed text-white"
-          }`}
-        >
-          Toggle Theme
-        </button>
+            {/* <button
+            onClick={generateQuestion}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4"
+            disabled={loading}
+            >
+            {loading ? 'Generating...' : 'Generate Questions'}
+            </button> */}
 
-        <button
-          onClick={runCode}
-          disabled={!isEditorReady}
-          className={`ml-2 px-4 py-2 rounded-md font-semibold transition-colors ${
-            isEditorReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-400 cursor-not-allowed text-white"
-          }`}
-        >
-          Run Code
-        </button>
-      </div>
-
-      <Editor
-        height="60vh"
-        width="50vw"
-        theme={theme}
-        language={language === "cpp" ? "cpp" : language}
-        loading={<Loader />}
-        value={code}
-        onChange={(newValue) => setCode(newValue)}
-        onMount={handleEditorDidMount}
-        options={{ lineNumbers: "on", fontSize: 16 }}
-      />
-
-      <div
-        style={{
-          marginTop: "20px",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          minHeight: "100px",
-          backgroundColor: "#f8f8f8",
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        <h3 className="font-semibold mb-2">Output:</h3>
-        <pre>{output}</pre>
+            <ul className="space-y-4">
+            {questions.map((q, index) => (
+                <li key={index} className="bg-white p-3 rounded shadow">
+                <div className="text-sm text-gray-500 mb-1">
+                    Question {index + 1} - {new Date(q.timestamp).toLocaleTimeString()}
+                </div>
+                <div className="whitespace-pre-wrap">{q.question}</div>
+                </li>
+            ))}
+            </ul>
+        </div>
+        <div className='flex flex-wrap h-[50vh] w-full '><Compiler user1={user1} user2={user2} room={roomId} questions={questions}/></div>
       </div>
     </div>
   );
-}
+};
 
-export default Compiler;
+export default Room;
