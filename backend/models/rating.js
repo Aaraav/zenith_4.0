@@ -5,15 +5,11 @@ const ratingSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1000,
-    max: 3000 // AI-generated ratings might be softer (like 3.2, etc.)
+    max: 3000 
   },
 
-  comment: { type: String }, // optional
+  comment: { type: String }, 
 
-  // Who is giving the rating
-  
-
-  // Who or what the rating is for
   targetId: {
     type: mongoose.Schema.Types.ObjectId,
     required: function () {
