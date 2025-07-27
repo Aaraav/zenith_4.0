@@ -11,7 +11,7 @@ export const RoomDetailsProvider = ({ children }) => {
   const [socketId, setSocketId] = useState(null);  // To store socket ID
 const [codee,setcodee]=useState("");
   useEffect(() => {
-    const socketConnection = io('http://localhost:5000');  // Update with your server URL
+    const socketConnection = io('https://zenith-4-0.onrender.com');  // Update with your server URL
 
     socketConnection.on('connect', () => {
       setSocketId(socketConnection.id);  // Set the socket ID when connected

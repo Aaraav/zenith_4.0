@@ -37,7 +37,7 @@ export default function App() {
 
   useEffect(() => {
     // Initialize socket connection
-    const socketConnection = io('http://localhost:5000');  // Replace with your socket server URL
+    const socketConnection = io('https://zenith-4-0.onrender.com');  // Replace with your socket server URL
     setSocket(socketConnection);
 
     // Get the socketId once the socket connects

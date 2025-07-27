@@ -70,7 +70,7 @@ export default function Profile() {
         localStorage.setItem("clerkId", user.id);
 
         const response = await axios.post(
-          "http://localhost:4000/api/users/save-user",
+          "https://zenith-4-0-http.onrender.com/api/users/save-user",
           userData
         );
         if (response.data.success) {
@@ -93,7 +93,7 @@ export default function Profile() {
     try {
       setLoading(true);
       const response = await axios.get(
-       ` http://localhost:4000/api/users/getUser/${clerkId}`
+       ` https://zenith-4-0-http.onrender.com/api/users/getUser/${clerkId}`
       );
       if (response.data.success) {
         const updatedUser = response.data.user;
@@ -137,7 +137,7 @@ export default function Profile() {
 
     try {
       const response = await axios.put(
-        "http://localhost:4000/api/users/update-username",
+        "https://zenith-4-0-http.onrender.com/api/users/update-username",
         updatedData
       );
       if (response.data.success) {
