@@ -64,13 +64,13 @@ export default function Navbar() {
           </ul>
         </nav>
       )}
-      {/* {!isSignedIn && (
+      {!isSignedIn && (
         <div>
           <SignedOut>
             <SignInButton />
           </SignedOut>
         </div>
-      )} */}
+      )}
     </>
   );
 }

@@ -1,186 +1,163 @@
 import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { FillSpinner as Loader } from "react-spinners-kit";
-import { useNavigate } from "react-router-dom";
-function Compiler({ user1, user2, room, questions }) {
-  const examples = {
-    javascript: `console.log("Hello, World!");\nconst x = 5 + 10;\nx;`,
-    python: `print("Hello from Pyodide!")\nfor i in range(3):\n  print("Line", i)`,
-    java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, World!");\n  }\n}`,
-    cpp: `#include <iostream>\nusing namespace std;\nint main() {\n  cout << "Hello, World!" << endl;\n  return 0;\n}`,
-  };
-const navigate=useNavigate();
-  const [theme, setTheme] = useState("light");
-  const [language, setLanguage] = useState("javascript");
-  const [code, setCode] = useState(examples.javascript);
-  const [isEditorReady, setIsEditorReady] = useState(false);
-  const [output, setOutput] = useState("");
-  const [elapsedTime, setElapsedTime] = useState(0);
+import { useNavigate } from "react-router-dom"; // Import for navigation
 
-  const pyodideRef = useRef(null);
+// This component now requires the main socket instance and the current user's username
+function Compiler({ socket, user1, user2, room, questions }) {
+    // The parent 'Room' component now guarantees that 'user1' is the current user.
+    const myUsername = user1;
+    const navigate = useNavigate(); // Hook for navigation
 
-  // useEffect(() => {
-  //   let startTime = localStorage.getItem("questionStartTime");
-  //   if (!startTime) {
-  //     startTime = Date.now();
-  //     localStorage.setItem("questionStartTime", startTime);
-  //   }
-  
-  //   const interval = setInterval(() => {
-  //     const now = Date.now();
-  //     const diffInSeconds = Math.floor((now - parseInt(startTime)) / 1000);
-  //     setElapsedTime(diffInSeconds);
-  
-  //     if (diffInSeconds >= 1800) { // 30 minutes = 1800 seconds
-  //       navigate("/");
-  //     }
-  //   }, 1000);
-  
-  //   return () => clearInterval(interval);
-  // }, [navigate]);
-  
+    const [myCode, setMyCode] = useState(`// Your code for: ${myUsername}`);
+    const [isEditorReady, setIsEditorReady] = useState(false);
+    const [status, setStatus] = useState("Connecting...");
+    const [evaluationResult, setEvaluationResult] = useState(null);
+    const [hasSubmitted, setHasSubmitted] = useState(false);
+    const hasJoinedRoom = useRef(false);
 
-  const formatTime = (seconds) => {
-    const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
-    const secs = String(seconds % 60).padStart(2, "0");
-    return `${mins}:${secs}`;
-  };
+    useEffect(() => {
+        // This effect handles the reload behavior.
+        const handleBeforeUnload = () => {
+            // If the results are showing, set a flag in sessionStorage before reload.
+            if (evaluationResult) {
+                sessionStorage.setItem('redirectOnLoad', 'true');
+            }
+        };
 
-  const handleEditorDidMount = () => {
-    setIsEditorReady(true);
-  };
+        window.addEventListener('beforeunload', handleBeforeUnload);
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "vs-dark" : "light");
-  };
-
-  const toggleLanguage = () => {
-    const langs = ["javascript", "python", "java", "cpp"];
-    const next = langs[(langs.indexOf(language) + 1) % langs.length];
-    setLanguage(next);
-    setCode(examples[next]);
-    setOutput("");
-  };
-
-  const submitCode = async () => {
-    try {
-      const response = await fetch("http://localhost:4000/evaluate-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          room,
-          user1,
-          user2,
-          questions,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error:", errorText);
-        return;
-      }
-
-      const data = await response.json();
-      console.log(data);
-      // You can show ratings or something based on `data`
-    } catch (error) {
-      console.error("Error evaluating code:", error);
-    }
-  };
-
-  const runCode = async () => {
-    if (language === "javascript") {
-      const logs = [];
-const originalLog = console.log; // ✅ declared outside
-
-try {
-  submitCode();
-
-  localStorage.setItem('code', code);
-  console.log = (...args) => logs.push(args.join(" "));
-  const result = eval(code);
-  if (result !== undefined) logs.push(result.toString());
-} catch (err) {
-  logs.push(`Error: ${err.message}`);
-} finally {
-  console.log = originalLog; // ✅ always restore it
-  setOutput(logs.join("\n"));
-}
-
-    } else if (language === "python") {
-      if (pyodideRef.current) {
-        try {
-          const result = await pyodideRef.current.runPythonAsync(code);
-          setOutput(result);
-          localStorage.setItem("code", code);
-          await submitCode();
-        } catch (err) {
-          setOutput(`Python Error: ${err.message}`);
+        // On component load, check for the flag.
+        if (sessionStorage.getItem('redirectOnLoad') === 'true') {
+            sessionStorage.removeItem('redirectOnLoad'); // Clear the flag
+            navigate('/'); // Redirect to home
         }
-      } else {
-        setOutput("Pyodide is not ready yet.");
-      }
-    } else {
-      setOutput(`${language.toUpperCase()} execution is not supported yet.`);
-    }
-  };
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <div className="mb-2 relative w-full">
-        <div className="absolute right-[100px] top-2">{formatTime(elapsedTime)}</div>
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [evaluationResult, navigate]);
 
-        <button
-          onClick={toggleTheme}
-          disabled={!isEditorReady}
-          className={`px-4 py-2 rounded-md font-semibold transition-colors ${
-            isEditorReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-400 cursor-not-allowed text-white"
-          }`}
-        >
-          Toggle Theme
-        </button>
+    useEffect(() => {
+        if (!socket || typeof socket.emit !== 'function' || !myUsername) {
+            return;
+        }
 
-        <button
-          onClick={runCode}
-          disabled={!isEditorReady}
-          className={`ml-2 px-4 py-2 rounded-md font-semibold transition-colors ${
-            isEditorReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-400 cursor-not-allowed text-white"
-          }`}
-        >
-          Run Code
-        </button>
-      </div>
+        // --- JOIN ROOM LOGIC ---
+        if (!hasJoinedRoom.current) {
+            socket.emit("joinRoom", { roomId: room, username: myUsername });
+            hasJoinedRoom.current = true;
+            setStatus("Ready to code!");
+        }
 
-      <Editor
-        height="60vh"
-        width="50vw"
-        theme={theme}
-        language={language === "cpp" ? "cpp" : language}
-        loading={<Loader />}
-        value={code}
-        onChange={(newValue) => setCode(newValue)}
-        onMount={handleEditorDidMount}
-        options={{ lineNumbers: "on", fontSize: 16 }}
-      />
+        // --- GAME EVENT LISTENERS ---
+        const handleStatusUpdate = ({ message }) => setStatus(message);
+        const handleOpponentSubmitted = ({ username }) => setStatus(`User ${username} has submitted!`);
+        
+        const handleEvaluationComplete = (results) => {
+            console.log("SUCCESS: 'evaluationComplete' event received by client.", results);
+            setStatus("Evaluation Complete!");
+            setEvaluationResult(results);
+        };
+        const handleEvaluationError = ({ message }) => {
+            console.error("ERROR: 'evaluationError' event received by client.", message);
+            setStatus(message);
+            setEvaluationResult(null);
+        };
+        const handleOpponentDisconnect = ({ message }) => {
+            setStatus(message);
+            setEvaluationResult(null);
+            setHasSubmitted(true); // Disable submission
+        };
 
-      <div
-        style={{
-          marginTop: "20px",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          minHeight: "100px",
-          backgroundColor: "#f8f8f8",
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        <h3 className="font-semibold mb-2">Output:</h3>
-        <pre>{output}</pre>
-      </div>
-    </div>
-  );
+        socket.on("statusUpdate", handleStatusUpdate);
+        socket.on("opponentSubmitted", handleOpponentSubmitted);
+        socket.on("evaluationComplete", handleEvaluationComplete);
+        socket.on("evaluationError", handleEvaluationError);
+        socket.on("opponentDisconnected", handleOpponentDisconnect);
+
+        return () => {
+            // Cleanup all listeners
+            socket.off("statusUpdate", handleStatusUpdate);
+            socket.off("opponentSubmitted", handleOpponentSubmitted);
+            socket.off("evaluationComplete", handleEvaluationComplete);
+            socket.off("evaluationError", handleEvaluationError);
+            socket.off("opponentDisconnected", handleOpponentDisconnect);
+        };
+    }, [socket, room, myUsername]);
+
+    const handleEditorChange = (value) => {
+        const newCode = value || "";
+        setMyCode(newCode);
+        if (socket && typeof socket.emit === 'function') {
+            socket.emit("codeChange", { roomId: room, username: myUsername, code: newCode });
+        }
+    };
+
+    const handleCodeSubmit = () => {
+        if (hasSubmitted || !isEditorReady || !socket || typeof socket.emit !== 'function') return;
+        setHasSubmitted(true);
+        setStatus("You have submitted. Waiting for opponent...");
+        socket.emit("submitCode", { roomId: room, username: myUsername });
+    };
+
+    const handleBackToHome = () => {
+        navigate('/'); // Navigate to the home page
+    };
+
+    return (
+        <div className="p-4 w-full h-full flex flex-col bg-gray-900 text-white relative">
+            
+            {/* --- CODING VIEW --- */}
+            <div className="mb-4 flex justify-between items-center">
+                <button
+                    onClick={handleCodeSubmit}
+                    disabled={!socket || !isEditorReady || hasSubmitted || evaluationResult}
+                    className="px-4 py-2 rounded-md font-semibold bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-500 disabled:cursor-not-allowed"
+                >
+                    {hasSubmitted ? "Submitted" : "Submit Your Code"}
+                </button>
+                <div className="font-mono text-lg text-yellow-400">{status}</div>
+            </div>
+
+            <div className="flex-grow">
+                <h3 className="font-semibold mb-2">Your Editor ({myUsername})</h3>
+                <Editor
+                    height="50vh"
+                    theme="vs-dark"
+                    language="javascript"
+                    value={myCode}
+                    onChange={handleEditorChange}
+                    onMount={() => setIsEditorReady(true)}
+                    options={{ fontSize: 14, minimap: { enabled: false } }}
+                />
+            </div>
+
+            {/* --- RESULTS MODAL OVERLAY --- */}
+            {evaluationResult && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center p-4 z-50">
+                    <div className="w-full max-w-4xl p-6 border-2 border-green-500 rounded-md bg-gray-800 shadow-lg">
+                        <h3 className="font-bold text-3xl mb-4 text-center text-white">Final Results</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <p className="font-semibold text-xl text-white">{evaluationResult?.user1?.username}'s Rating: {evaluationResult?.user1?.newRating} <span className="text-green-400 font-bold">(+{evaluationResult?.user1?.increment})</span></p>
+                                <p className="text-md mt-2 whitespace-pre-wrap text-gray-300">{evaluationResult?.user1?.analysis}</p>
+                            </div>
+                            <div>
+                                <p className="font-semibold text-xl text-white">{evaluationResult?.user2?.username}'s Rating: {evaluationResult?.user2?.newRating} <span className="text-green-400 font-bold">(+{evaluationResult?.user2?.increment})</span></p>
+                                <p className="text-md mt-2 whitespace-pre-wrap text-gray-300">{evaluationResult?.user2?.analysis}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleBackToHome}
+                        className="mt-8 px-8 py-3 rounded-md font-semibold bg-blue-600 hover:bg-blue-700 text-white text-lg"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default Compiler;

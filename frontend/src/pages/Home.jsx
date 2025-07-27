@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Navbar from './Navbar';
 
 export default function Home({ socketId, socket }) {
   const navigate = useNavigate();
@@ -58,6 +59,7 @@ export default function Home({ socketId, socket }) {
     }
 
     localStorage.setItem('selectedTopic', selectedTopic);
+    // localStorage.setItem('')
 
     if (socket) {
       socket.emit('joinQueue', {
@@ -70,6 +72,8 @@ export default function Home({ socketId, socket }) {
   };
 
   return (
+    <>
+    {/* <Navbar/> */}
     <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-md">
       <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">Start Competing</h1>
 
@@ -92,5 +96,6 @@ export default function Home({ socketId, socket }) {
         </div>
       )}
     </div>
+    </>
   );
 }
