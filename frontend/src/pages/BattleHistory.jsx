@@ -24,8 +24,8 @@ export default function BattleHistory() {
       setError(null);
       try {
         const [statsResponse, battlesResponse] = await Promise.all([
-          axios.get(`http://localhost:4000/api/battles/stats/${username}`),
-          axios.get(`http://localhost:4000/api/battles/user/${username}`)
+          axios.get(`https://zenith-4-0-http.onrender.com/api/battles/stats/${username}`),
+          axios.get(`https://zenith-4-0-http.onrender.com/api/battles/user/${username}`)
         ]);
         setStats(statsResponse.data.stats);
         setBattles(battlesResponse.data.battles);
