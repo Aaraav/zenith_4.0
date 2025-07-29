@@ -6,6 +6,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const http = require('http');
 const { Server } = require("socket.io");
 const User = require('./models/User');
+const BattleHistory = require('./models/battleHistory');
 
 dotenv.config();
 
@@ -109,12 +110,79 @@ async function performEvaluation(roomId) {
         };
 
         io.to(roomId).emit("evaluationComplete", resultsPayload);
+          storeBattleHistory(
+      roomId,
+      room,
+      resultsPayload,
+      r1.finalRating,
+      r2.finalRating
+    ).catch((err) => {
+      console.error("⚠️ Battle history storage failed (non-critical):", err);
+    });
         delete rooms[roomId];
 
     } catch (error) {
         console.error("Evaluation Error:", error);
         io.to(roomId).emit("evaluationError", { message: "An error occurred during AI evaluation." });
     }
+}
+
+ async function storeBattleHistory(
+  roomId,
+  room,
+  resultsPayload,
+  user1OldRating,
+  user2OldRating
+) {
+  try {
+    const battleData = {
+      roomId,
+
+      // Compressed question (60% size reduction)
+      question: BattleHistory.compressData(room.question),
+      questionCompressed: true,
+
+      // User data with compressed code
+      users: [
+        {
+          username: room.user1,
+          code: BattleHistory.compressData(room.users[room.user1].code),
+          codeCompressed: true,
+          finalRating: resultsPayload.user1.newRating,
+          ratingChange: resultsPayload.user1.increment,
+          analysis: resultsPayload.user1.analysis,
+        },
+        {
+          username: room.user2,
+          code: BattleHistory.compressData(room.users[room.user2].code),
+          codeCompressed: true,
+          finalRating: resultsPayload.user2.newRating,
+          ratingChange: resultsPayload.user2.increment,
+          analysis: resultsPayload.user2.analysis,
+        },
+      ],
+
+      // Battle metadata
+      topic: room.topic || "DSA",
+      averageRating: Math.round(
+        ((user1OldRating || 1000) + (user2OldRating || 1000)) / 2
+      ),
+      battleStarted: room.createdAt || new Date(Date.now() - 600000),
+      battleEnded: new Date(),
+      battleDuration: room.createdAt
+        ? Math.round((Date.now() - room.createdAt.getTime()) / 1000)
+        : 600,
+    };
+
+    await BattleHistory.create(battleData);
+    console.log(`✅ Battle history stored for room: ${roomId}`);
+  } catch (error) {
+    console.error(
+      `❌ Failed to store battle history for room ${roomId}:`,
+      error
+    );
+    // Don't throw - this shouldn't affect user experience
+  }
 }
 
 // --- HELPER FUNCTION FOR QUESTION GENERATION ---

@@ -61,6 +61,22 @@ export default function Navbar() {
                 Profile
               </Link>
             </li>
+            <li>
+              {/* <Link
+                to="/dashboard"
+                className="text-black hover:text-gray-600 font-semibold"
+              >
+                Dashboard
+              </Link> */}
+            </li>
+             <li>
+              <Link
+                to="/battle-history"
+                className="text-black hover:text-gray-600 font-semibold"
+              >
+                Battles-History
+              </Link>
+            </li>
           </ul>
         </nav>
       )}
