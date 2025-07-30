@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import axios from "axios";
 import { useRoomDetails } from "../RoomContext";
+import Navbar from "./Navbar";
+import { BackgroundBeamsWithCollision } from "../components/ui/background-beams-with-collision";
 import {
   LineChart,
   Line,
@@ -22,16 +24,24 @@ export default function Profile() {
   const [sites, setSites] = useState(["codeforces", "codechef"]);
   const [currentSite, setCurrentSite] = useState("all");
   const [cf, setcf] = useState({});
+  const [platformUsernames, setPlatformUsernames] = useState({
+    codeforces: "",
+    codechef: "",
+    leetcode: "",
+    codingninjas: "",
+  });
+  const [isEditingPlatforms, setIsEditingPlatforms] = useState(false);
 
   useEffect(() => {
-    axios.get('https://codeforces.com/api/user.info?handles=michael_muthuraj')
-      .then(response => {
+    axios
+      .get("https://codeforces.com/api/user.info?handles=michael_muthuraj")
+      .then((response) => {
         console.log(response.data.result[0]);
-        
+
         setcf(response.data.result[0]); // Prettified JSON
       })
-      .catch(error => {
-        console.error('Error fetching data:', error);
+      .catch((error) => {
+        console.error("Error fetching data:", error);
       });
   }, []);
   const ratingData = [
@@ -49,9 +59,9 @@ export default function Profile() {
     { year: "2024-12", rating: 1400 },
   ];
   const [userDetails, setuserDetails] = useState({});
-  useEffect(()=>{
-     setuserDetails(JSON.parse(localStorage.getItem('userdetails')));
-  },[])
+  useEffect(() => {
+    setuserDetails(JSON.parse(localStorage.getItem("userdetails")));
+  }, []);
   useEffect(() => {
     const saveUserData = async () => {
       if (!user || isUserSaved) return;
@@ -93,7 +103,7 @@ export default function Profile() {
     try {
       setLoading(true);
       const response = await axios.get(
-       ` https://zenith-4-0-http.onrender.com/api/users/getUser/${clerkId}`
+        ` https://zenith-4-0-http.onrender.com/api/users/getUser/${clerkId}`
       );
       if (response.data.success) {
         const updatedUser = response.data.user;
@@ -110,10 +120,7 @@ export default function Profile() {
   };
   useEffect(() => {
     fetchUpdatedUserData();
-   
   }, []);
-  
-
 
   const handleUsernameChange = (e) => {
     setUsername(e.target.value);
@@ -124,8 +131,10 @@ export default function Profile() {
     setError(null);
 
     // FIX: Add validation to check for underscores in the username.
-    if (username.includes('_')) {
-      setError("Username cannot contain underscores (_). Please choose another.");
+    if (username.includes("_")) {
+      setError(
+        "Username cannot contain underscores (_). Please choose another."
+      );
       return; // Stop the submission if the username is invalid
     }
 
@@ -150,213 +159,418 @@ export default function Profile() {
     }
   };
 
+  const handlePlatformUsernameChange = (platform, value) => {
+    setPlatformUsernames((prev) => ({
+      ...prev,
+      [platform]: value,
+    }));
+  };
+
+  const handlePlatformUsernamesSubmit = () => {
+    // For now, just log the usernames - no backend integration
+    console.log("Platform usernames:", platformUsernames);
+    setIsEditingPlatforms(false);
+  };
+
   if (!isSignedIn) {
     return (
-      <div className="text-center mt-10 text-lg text-red-500">
-        Please sign in to view your profile.
-      </div>
+      <>
+        <Navbar />
+        <BackgroundBeamsWithCollision className="min-h-screen">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center text-lg text-red-400">
+              Please sign in to view your profile.
+            </div>
+          </div>
+        </BackgroundBeamsWithCollision>
+      </>
     );
   }
 
   return (
     <>
-      <div className="w-screen h-screen flex bg-gray-100 p-5">
-        {/* Sidebar */}
-        <div className="w-[25%] bg-white p-6 rounded-2xl shadow-md flex flex-col items-center">
-          {/* Profile Image */}
-          <div className="flex justify-center mb-4">
-            <img
-              src={user.imageUrl}
-              alt="User Avatar"
-              className="w-[250px] h-[250px] rounded-full border border-gray-300 shadow-inner"
-            />
-          </div>
+      <Navbar />
+      <BackgroundBeamsWithCollision className="min-h-screen">
+        <div className="w-full min-h-screen flex p-5 pt-20">{/* Added pt-20 for navbar spacing */}
+          {/* Sidebar */}
+          <div
+            className="w-[25%] p-6 rounded-2xl shadow-md flex flex-col items-center relative z-10 border border-white/10"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.1)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            {/* Profile Image */}
+            <div className="flex justify-center mb-4">
+              <img
+                src={user.imageUrl}
+                alt="User Avatar"
+                className="w-[250px] h-[250px] rounded-full border border-gray-800 shadow-inner"
+              />
+            </div>
 
-          {/* User Details */}
-          <div className="text-gray-700 w-full flex flex-col items-center text-center space-y-3 text-lg">
-            {/* Username */}
-            <div>
-              <span className="font-semibold">Username:</span>{" "}
+            {/* User Details */}
+            <div className="text-white w-full flex flex-col items-center text-center space-y-3 text-lg">
+              {/* Username */}
+              <div>
+                <span className="font-semibold">Username:</span>{" "}
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    className="border-b-2 border-white/30 bg-transparent text-white focus:outline-none focus:border-white placeholder-white/60"
+                  />
+                ) : (
+                  <span>{username}</span>
+                )}
+              </div>
+
+              {/* Full Name */}
+              <p>
+                <span className="font-semibold">Full Name:</span>{" "}
+                {user.fullName}
+              </p>
+
+              {/* Email */}
+              <p>
+                <span className="font-semibold">Email:</span>{" "}
+                {user.primaryEmailAddress?.emailAddress}
+              </p>
+
+              {/* Created At */}
+              <p>
+                <span className="font-semibold">Created At:</span>{" "}
+                {new Date(user.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="w-[90%] border-t-2 border-white/20 mt-6 mb-4"></div>
+
+            {/* Buttons / Loading / Error */}
+            <div className="w-full flex flex-col items-center">
+              {loading && (
+                <div className="text-center mt-2 text-lg text-white/80">
+                  Updating profile...
+                </div>
+              )}
+              {error && (
+                <div className="text-center mt-2 text-lg text-red-400">
+                  {error}
+                </div>
+              )}
               {isEditing ? (
-                <input
-                  type="text"
-                  value={username}
-                  onChange={handleUsernameChange}
-                  className="border-b-2 border-gray-300 focus:outline-none focus:border-blue-500"
-                />
+                <div className="mt-2 flex space-x-4">
+                  <button
+                    onClick={handleUsernameSubmit}
+                    className="bg-blue-500/80 text-white px-4 py-2 rounded-full hover:bg-blue-600/80 backdrop-blur-sm"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="text-white/70 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                </div>
               ) : (
-                <span>{username}</span>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-blue-500/80 text-white px-4 py-2 rounded-full mt-2 hover:bg-blue-600/80 backdrop-blur-sm"
+                >
+                  Edit Username
+                </button>
               )}
             </div>
 
-            {/* Full Name */}
-            <p>
-              <span className="font-semibold">Full Name:</span> {user.fullName}
-            </p>
+            {/* Second Divider */}
+            <div className="w-[90%] border-t-2 border-white/20 mt-6 mb-4"></div>
 
-            {/* Email */}
-            <p>
-              <span className="font-semibold">Email:</span>{" "}
-              {user.primaryEmailAddress?.emailAddress}
-            </p>
+            {/* Platform Usernames Section */}
+            <div className="w-full flex flex-col items-center space-y-4">
+              <div className="text-white w-full flex flex-col items-center text-center space-y-3 text-lg">
+                {/* Codeforces */}
+                <div className="w-full">
+                  <span className="font-semibold">Codeforces:</span>{" "}
+                  {isEditingPlatforms ? (
+                    <input
+                      type="text"
+                      value={platformUsernames.codeforces}
+                      onChange={(e) =>
+                        handlePlatformUsernameChange(
+                          "codeforces",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Enter Codeforces username"
+                      className="border-b-2 border-white/30 bg-transparent text-white focus:outline-none focus:border-white placeholder-white/60 ml-2"
+                    />
+                  ) : (
+                    <span>{platformUsernames.codeforces || "Not set"}</span>
+                  )}
+                </div>
 
-            {/* Created At */}
-            <p>
-              <span className="font-semibold">Created At:</span>{" "}
-              {new Date(user.createdAt).toLocaleString()}
-            </p>
-          </div>
+                {/* CodeChef */}
+                <div className="w-full">
+                  <span className="font-semibold">CodeChef:</span>{" "}
+                  {isEditingPlatforms ? (
+                    <input
+                      type="text"
+                      value={platformUsernames.codechef}
+                      onChange={(e) =>
+                        handlePlatformUsernameChange("codechef", e.target.value)
+                      }
+                      placeholder="Enter CodeChef username"
+                      className="border-b-2 border-white/30 bg-transparent text-white focus:outline-none focus:border-white placeholder-white/60 ml-2"
+                    />
+                  ) : (
+                    <span>{platformUsernames.codechef || "Not set"}</span>
+                  )}
+                </div>
 
-          {/* Divider */}
-          <div className="w-[90%] border-t-2 border-gray-200 mt-6 mb-4"></div>
+                {/* LeetCode */}
+                <div className="w-full">
+                  <span className="font-semibold">LeetCode:</span>{" "}
+                  {isEditingPlatforms ? (
+                    <input
+                      type="text"
+                      value={platformUsernames.leetcode}
+                      onChange={(e) =>
+                        handlePlatformUsernameChange("leetcode", e.target.value)
+                      }
+                      placeholder="Enter LeetCode username"
+                      className="border-b-2 border-white/30 bg-transparent text-white focus:outline-none focus:border-white placeholder-white/60 ml-2"
+                    />
+                  ) : (
+                    <span>{platformUsernames.leetcode || "Not set"}</span>
+                  )}
+                </div>
 
-          {/* Buttons / Loading / Error */}
-          <div className="w-full flex flex-col items-center">
-            {loading && (
-              <div className="text-center mt-2 text-lg text-gray-500">
-                Updating profile...
+                {/* Coding Ninjas */}
+                <div className="w-full">
+                  <span className="font-semibold">Coding Ninjas:</span>{" "}
+                  {isEditingPlatforms ? (
+                    <input
+                      type="text"
+                      value={platformUsernames.codingninjas}
+                      onChange={(e) =>
+                        handlePlatformUsernameChange(
+                          "codingninjas",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Enter Coding Ninjas username"
+                      className="border-b-2 border-white/30 bg-transparent text-white focus:outline-none focus:border-white placeholder-white/60 ml-2"
+                    />
+                  ) : (
+                    <span>{platformUsernames.codingninjas || "Not set"}</span>
+                  )}
+                </div>
               </div>
-            )}
-            {error && (
-              <div className="text-center mt-2 text-lg text-red-500">
-                {error}
-              </div>
-            )}
-            {isEditing ? (
-              <div className="mt-2 flex space-x-4">
-                <button
-                  onClick={handleUsernameSubmit}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-full"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full mt-2"
-              >
-                Edit Username
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 ml-6 flex flex-col">
-          {/* Top Row: Rating Tile + Chart Tile */}
-          <div className="flex w-full gap-6 mb-6">
-            {/* Rating Tile */}
-            <div className="w-[250px] h-[250px] bg-white shadow-md rounded-2xl p-4 relative flex flex-col justify-center items-center">
-              {/* Info Icon */}
-              <div className="absolute top-3 right-3 text-gray-400">
-                <i className="fas fa-info-circle"></i> {/* optional icon */}
+              {/* Platform Usernames Edit Buttons */}
+              <div className="w-full flex justify-center">
+                {isEditingPlatforms ? (
+                  <div className="mt-2 flex space-x-4">
+                    <button
+                      onClick={handlePlatformUsernamesSubmit}
+                      className="bg-green-500/80 text-white px-4 py-2 rounded-full hover:bg-green-600/80 backdrop-blur-sm"
+                    >
+                      Save Platforms
+                    </button>
+                    <button
+                      onClick={() => setIsEditingPlatforms(false)}
+                      className="text-white/70 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsEditingPlatforms(true)}
+                    className="bg-green-500/80 text-white px-4 py-2 rounded-full mt-2 hover:bg-green-600/80 backdrop-blur-sm"
+                  >
+                    Edit Platforms
+                  </button>
+                )}
               </div>
-
-              {/* Heading */}
-              <p className="text-lg font-semibold text-gray-500 mb-2">Rating</p>
-
-              {/* Big Number */}
-              <p className="text-5xl font-bold text-black">{userDetails.finalRating}</p>
             </div>
+          </div>
 
-            {/* Chart Tile */}
-            <div className="flex-1 bg-white shadow-md rounded-2xl p-4 flex flex-col">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-700">
-                  Rating Progress
-                </h2>
-                <div className="text-gray-400 cursor-pointer">
+          {/* Main Content Area */}
+          <div className="flex-1 ml-6 flex flex-col">
+            {/* Top Row: Rating Tile + Chart Tile */}
+            <div className="flex w-full gap-6 mb-6">
+              {/* Rating Tile */}
+              <div
+                className="w-[250px] h-[250px] shadow-md rounded-2xl p-4 relative flex flex-col justify-center items-center border border-white/10"
+                style={{
+                  backgroundColor: "rgba(0, 0, 0, 0.1)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                {/* Info Icon */}
+                <div className="absolute top-3 right-3 text-white/60">
                   <i className="fas fa-info-circle"></i> {/* optional icon */}
                 </div>
+
+                {/* Heading */}
+                <p className="text-lg font-semibold text-white/80 mb-2">
+                  Rating
+                </p>
+
+                {/* Big Number */}
+                <p className="text-5xl font-bold text-white">
+                  {userDetails.finalRating}
+                </p>
               </div>
 
-              {/* Chart */}
-              <div className="flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ratingData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="year" />
-                    <YAxis domain={[800, 1600]} />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="rating"
-                      stroke="#000"
-                      strokeWidth={2}
-                      dot={{ fill: "#000" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+              {/* Chart Tile */}
+              <div
+                className="flex-1 shadow-md rounded-2xl p-4 flex flex-col border border-white/10"
+                style={{
+                  backgroundColor: "rgba(0, 0, 0, 0.1)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white">
+                    Rating Progress
+                  </h2>
+                  <div className="text-white/60 cursor-pointer">
+                    <i className="fas fa-info-circle"></i> {/* optional icon */}
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={ratingData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="rgba(255,255,255,0.2)"
+                      />
+                      <XAxis dataKey="year" tick={{ fill: "white" }} />
+                      <YAxis domain={[800, 1600]} tick={{ fill: "white" }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(0, 0, 0, 0.8)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: "8px",
+                          color: "white",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="rating"
+                        stroke="#fff"
+                        strokeWidth={2}
+                        dot={{ fill: "#fff" }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
+            <div className="w-full flex gap-10">
+              {/* Codeforces Tile */}
+              <div
+                className="w-[450px] shadow-lg rounded-3xl p-8 flex flex-col items-center border border-white/10"
+                style={{
+                  backgroundColor: "rgba(0, 0, 0, 0.1)",
+                  backdropFilter: "blur(5px)",
+                }}
+              >
+                <p className="text-3xl font-extrabold text-white mb-8">
+                  Codeforces
+                </p>
+                <div className="flex gap-8">
+                  {/* Rating Box */}
+                  <div
+                    className="p-8 rounded-2xl flex flex-col items-center w-[160px] border border-white/10"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.025)",
+                      backdropFilter: "blur(5px)",
+                    }}
+                  >
+                    <p className="text-lg font-semibold text-white/80 mb-2">
+                      Rating
+                    </p>
+                    <p className="text-4xl font-extrabold text-white">
+                      {cf.rating}
+                    </p>
+                  </div>
+                  {/* Rank Box */}
+                  <div
+                    className="p-8 rounded-2xl flex flex-col items-center w-[160px] border border-white/10"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.025)",
+                      backdropFilter: "blur(5px)",
+                    }}
+                  >
+                    <p className="text-lg font-semibold text-white/80 mb-2">
+                      Rank
+                    </p>
+                    <p className="text-4xl font-extrabold text-white">
+                      {cf.rank}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CodeChef Tile */}
+              <div
+                className="w-[450px] shadow-lg rounded-3xl p-8 flex flex-col items-center border border-white/10"
+                style={{
+                  backgroundColor: "rgba(0, 0, 0, 0.002)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <p className="text-3xl font-extrabold text-white mb-8">
+                  CodeChef
+                </p>
+                <div className="flex gap-8">
+                  {/* Rating Box */}
+                  <div
+                    className="p-8 rounded-2xl flex flex-col items-center w-[160px] border border-white/10"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.025)",
+                      backdropFilter: "blur(100px)",
+                    }}
+                  >
+                    <p className="text-lg font-semibold text-white/80 mb-2">
+                      Rating
+                    </p>
+                    <p className="text-4xl font-extrabold text-white">
+                      {cf.rating}
+                    </p>
+                  </div>
+                  {/* Rank Box */}
+                  <div
+                    className="p-8 rounded-2xl flex flex-col items-center w-[160px] border border-white/10"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.025)",
+                      backdropFilter: "blur(100px)",
+                    }}
+                  >
+                    <p className="text-lg font-semibold text-white/80 mb-2">
+                      Rank
+                    </p>
+                    <p className="text-4xl font-extrabold text-white">
+                      {cf.rank}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* You can add more sections below if needed */}
           </div>
-          <div className="w-full flex gap-10">
-            {/* Codeforces Tile */}
-            <div className="w-[450px] bg-white shadow-lg rounded-3xl p-8 flex flex-col items-center">
-              <p className="text-3xl font-extrabold text-gray-800 mb-8">
-                Codeforces
-              </p>
-              <div className="flex gap-8">
-                {/* Rating Box */}
-                <div className="bg-gray-100 p-8 rounded-2xl flex flex-col items-center w-[160px]">
-                  <p className="text-lg font-semibold text-gray-500 mb-2">
-                    Rating
-                  </p>
-                  <p className="text-4xl font-extrabold text-black">
-                    {cf.rating}
-                  </p>
-                </div>
-                {/* Rank Box */}
-                <div className="bg-gray-100 p-8 rounded-2xl flex flex-col items-center w-[160px]">
-                  <p className="text-lg font-semibold text-gray-500 mb-2">
-                    Rank
-                  </p>
-                  <p className="text-4xl font-extrabold text-black">
-                    {cf.rank}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* CodeChef Tile */}
-            <div className="w-[450px] bg-white shadow-lg rounded-3xl p-8 flex flex-col items-center">
-              <p className="text-3xl font-extrabold text-gray-800 mb-8">
-                CodeChef
-              </p>
-              <div className="flex gap-8">
-                {/* Rating Box */}
-                <div className="bg-gray-100 p-8 rounded-2xl flex flex-col items-center w-[160px]">
-                  <p className="text-lg font-semibold text-gray-500 mb-2">
-                    Rating
-                  </p>
-                  <p className="text-4xl font-extrabold text-black">
-                    {cf.rating}
-                  </p>
-                </div>
-                {/* Rank Box */}
-                <div className="bg-gray-100 p-8 rounded-2xl flex flex-col items-center w-[160px]">
-                  <p className="text-lg font-semibold text-gray-500 mb-2">
-                    Rank
-                  </p>
-                  <p className="text-4xl font-extrabold text-black">
-                    {cf.rank}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* You can add more sections below if needed */}
         </div>
-      </div>
+      </BackgroundBeamsWithCollision>
     </>
   );
 }

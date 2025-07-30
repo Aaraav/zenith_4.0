@@ -1,10 +1,5 @@
-import React, { useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useNavigate,
-} from "react-router-dom";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   SignedIn,
   SignedOut,
@@ -12,81 +7,92 @@ import {
   UserButton,
   useUser,
 } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import {
+  Navbar as ResizableNavbar,
+  NavBody,
+  NavItems,
+  MobileNav,
+  NavbarLogo,
+  MobileNavHeader,
+  MobileNavToggle,
+  MobileNavMenu,
+} from "../components/ui/resizable-navbar.js";
 
 export default function Navbar() {
   const { isSignedIn } = useUser();
-  return (
-    <>
-      {isSignedIn && (
-        <nav className="bg-white-200 shadow-md p-4 flex flex-wrap">
-          {/* <header style={{ padding: "1rem", borderBottom: "1px solid #ddd" }}>
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    {
+      name: "Home",
+      link: "/",
+    },
+    {
+      name: "Profile",
+      link: "/profile",
+    },
+    {
+      name: "Battle History",
+      link: "/battle-history",
+    },
+  ];
+
+  if (!isSignedIn) {
+    return (
+      <div className="flex justify-center items-center p-4">
         <SignedOut>
           <SignInButton />
         </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
-      </header> */}
-          <ul className="flex space-x-6  flex-wrap ">
-            <li className=" right-6 absolute ">
-              <SignedOut>
-                <SignInButton />
-              </SignedOut>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full bg-black">
+      <ResizableNavbar>
+        {/* Desktop Navigation */}
+        <NavBody>
+          <NavbarLogo />
+          <NavItems items={navItems} />
+          <div className="flex items-center gap-4">
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </div>
+        </NavBody>
+
+        {/* Mobile Navigation */}
+        <MobileNav>
+          <MobileNavHeader>
+            <NavbarLogo />
+            <MobileNavToggle
+              isOpen={isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            />
+          </MobileNavHeader>
+
+          <MobileNavMenu
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+          >
+            {navItems.map((item, idx) => (
+              <Link
+                key={`mobile-link-${idx}`}
+                to={item.link}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="relative text-neutral-600 dark:text-neutral-300 hover:text-neutral-800"
+              >
+                <span className="block">{item.name}</span>
+              </Link>
+            ))}
+            <div className="flex w-full flex-col gap-4 mt-4">
               <SignedIn>
                 <UserButton />
               </SignedIn>
-            </li>
-            <li>
-              <Link
-                to="/"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              {/* <Link
-                to="/dashboard"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Dashboard
-              </Link> */}
-            </li>
-            <li>
-              <Link
-                to="/profile"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Profile
-              </Link>
-            </li>
-            <li>
-              {/* <Link
-                to="/dashboard"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Dashboard
-              </Link> */}
-            </li>
-             <li>
-              <Link
-                to="/battle-history"
-                className="text-black hover:text-gray-600 font-semibold"
-              >
-                Battles-History
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      )}
-      {!isSignedIn && (
-        <div>
-          <SignedOut>
-            <SignInButton />
-          </SignedOut>
-        </div>
-      )}
-    </>
+            </div>
+          </MobileNavMenu>
+        </MobileNav>
+      </ResizableNavbar>
+    </div>
   );
 }

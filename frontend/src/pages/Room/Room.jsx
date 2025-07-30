@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import Compiler from '../Compiler'; // Your updated Compiler component
+import Navbar from '../Navbar';
 
 const Room = ({ socket }) => {
   const { roomId } = useParams();
@@ -121,46 +122,74 @@ const Room = ({ socket }) => {
   }, [roomId]);
 
   return (
-    <div className="relative w-screen h-screen flex overflow-hidden">
-      <div ref={containerRef} className="w-[50vw] h-full" />
-        <div className='flex flex-wrap bg-gray-100 w-[50vw] '>
+    <>
+      <Navbar />
+      <div className="bg-black min-h-screen">
+        <div className="relative w-screen h-screen flex overflow-hidden pt-20">{/* Added pt-20 for navbar spacing */}
+          <div ref={containerRef} className="w-[50vw] h-full" />
+          <div className='flex flex-wrap w-[50vw]'>
             
-        <div className=" w-full h-[50vh] p-6  overflow-y-auto border-black border-solid-[1px]">
-            <h2 className="text-xl font-bold mb-4">AI CP/DSA Questions</h2>
+            <div 
+              className="w-full h-[50vh] p-6 overflow-y-auto border border-white/10"
+              style={{
+                backgroundColor: "rgba(0, 0, 0, 0.1)",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+                <h2 className="text-xl font-bold mb-4 text-white">AI CP/DSA Questions</h2>
+                
+                <ul className="space-y-4">
+                  {questions.length > 0 && (
+                    (() => {
+                      const lastQuestion = questions[questions.length - 1];
+                      return (
+                        <li 
+                          className="p-3 rounded shadow border border-white/10"
+                          style={{
+                            backgroundColor: "rgba(255, 255, 255, 0.05)",
+                            backdropFilter: "blur(5px)",
+                          }}
+                        >
+                          <div className="text-sm text-white/70 mb-1">
+                            Latest Question - {new Date(lastQuestion.timestamp).toLocaleTimeString()}
+                          </div>
+                          <div 
+                            className="text-white/90" 
+                            dangerouslySetInnerHTML={{ __html: lastQuestion.question }} 
+                          />
+                        </li>
+                      );
+                    })()
+                  )}
+                </ul>
+            </div>
             
-            <ul className="space-y-4">
-              {questions.length > 0 && (
-                (() => {
-                  const lastQuestion = questions[questions.length - 1];
-                  return (
-                    <li className="bg-white p-3 rounded shadow">
-                      <div className="text-sm text-gray-500 mb-1">
-                        Latest Question - {new Date(lastQuestion.timestamp).toLocaleTimeString()}
-                      </div>
-                      <div dangerouslySetInnerHTML={{ __html: lastQuestion.question }} />
-                    </li>
-                  );
-                })()
-              )}
-            </ul>
-        </div>
-        
-        <div className='flex flex-wrap h-[50vh] w-full '>
-            {/* Render the compiler only after the user order has been determined */}
-            {compilerUsers ? (
-                <Compiler 
-                    socket={socket} 
-                    user1={compilerUsers.user1} // This is now guaranteed to be the current user
-                    user2={compilerUsers.user2} // This is now guaranteed to be the opponent
-                    room={roomId} 
-                    questions={questions}
-                />
-            ) : (
-                <div className="p-4 text-center w-full">Initializing compiler...</div>
-            )}
+            <div className='flex flex-wrap h-[50vh] w-full'>
+                {/* Render the compiler only after the user order has been determined */}
+                {compilerUsers ? (
+                    <Compiler 
+                        socket={socket} 
+                        user1={compilerUsers.user1} // This is now guaranteed to be the current user
+                        user2={compilerUsers.user2} // This is now guaranteed to be the opponent
+                        room={roomId} 
+                        questions={questions}
+                    />
+                ) : (
+                    <div 
+                      className="p-4 text-center w-full border border-white/10"
+                      style={{
+                        backgroundColor: "rgba(0, 0, 0, 0.1)",
+                        backdropFilter: "blur(10px)",
+                      }}
+                    >
+                      <div className="text-white/80">Initializing compiler...</div>
+                    </div>
+                )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

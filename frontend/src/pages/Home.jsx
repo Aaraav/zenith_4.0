@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "./Navbar";
+import { Button } from "../components/ui/stateful-button";
+import { BackgroundBeamsWithCollision } from "../components/ui/background-beams-with-collision";
 
 export default function Home({ socketId, socket }) {
   const navigate = useNavigate();
@@ -78,6 +79,12 @@ export default function Home({ socketId, socket }) {
         socketId, // Pass the socketId when emitting data
       });
     }
+
+    // Return a promise that never resolves - the loading will continue until match is found
+    return new Promise((resolve, reject) => {
+      // The promise will remain pending until the component is unmounted or user navigates away
+      // This keeps the button in loading state until match is found via the existing socket logic
+    });
   };
 
   const handleGoToProfile = () => {
@@ -91,33 +98,37 @@ export default function Home({ socketId, socket }) {
 
   return (
     <>
-      {/* <Navbar/> */}
-      <div className="max-w-xl mx-auto mt-12 p-6 bg-white rounded-2xl shadow-md">
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          Start Competing
-        </h1>
+      <BackgroundBeamsWithCollision className="min-h-screen h-[100vh] absolute top-0">
+        <div className="flex items-center justify-center min-h-screen">
+          <div
+            className="w-full max-w-xl mx-4 p-6 rounded-2xl shadow-md relative z-10 border border-white/10"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.1)",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <h1 className="text-3xl font-bold text-center mb-6 text-white">
+              Start Competing
+            </h1>
 
-        <div className="text-center mt-10 text-xl font-bold">
-          Hello, {name || "Guest"}!
+            <div className="text-center mt-10 text-xl font-bold text-white">
+              Hello, {name || "Guest"}!
+            </div>
+
+            {matchedMsg && (
+              <div className="text-green-400 text-center mt-6 font-semibold">
+                {matchedMsg}
+              </div>
+            )}
+
+            {!roomId && (
+              <div className="mt-6 text-center">
+                <Button onClick={handleSendData}>Join Matchmaking Queue</Button>
+              </div>
+            )}
+          </div>
         </div>
-
-        {matchedMsg && (
-          <div className="text-green-600 text-center mt-6 font-semibold">
-            {matchedMsg}
-          </div>
-        )}
-
-        {!roomId && (
-          <div className="mt-6 text-center">
-            <button
-              onClick={handleSendData}
-              className="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600"
-            >
-              Join Matchmaking Queue
-            </button>
-          </div>
-        )}
-      </div>
+      </BackgroundBeamsWithCollision>
 
       {/* Username Required Popup */}
       {showUsernamePopup && (
