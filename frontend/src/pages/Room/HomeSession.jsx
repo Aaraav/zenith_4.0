@@ -19,14 +19,16 @@ const HomeSession = () => {
       <Navbar />
       <BackgroundBeamsWithCollision className="min-h-screen">
         <div className="h-screen flex flex-col items-center justify-center px-4 pt-20">
-          <div 
+          <div
             className="p-8 rounded-2xl shadow-lg border border-white/10 max-w-md w-full"
             style={{
               backgroundColor: "rgba(0, 0, 0, 0.1)",
               backdropFilter: "blur(10px)",
             }}
           >
-            <h1 className="text-4xl font-bold text-white mb-2 text-center">ZegoCloud Video Chat</h1>
+            <h1 className="text-4xl font-bold text-white mb-2 text-center">
+              ZegoCloud Video Chat
+            </h1>
             <p className="text-lg text-white/70 mb-6 text-center">
               Enter a Room ID to join a video call
             </p>

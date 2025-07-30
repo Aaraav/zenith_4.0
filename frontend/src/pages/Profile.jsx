@@ -191,7 +191,8 @@ export default function Profile() {
     <>
       <Navbar />
       <BackgroundBeamsWithCollision className="min-h-screen">
-        <div className="w-full min-h-screen flex p-5 pt-20">{/* Added pt-20 for navbar spacing */}
+        <div className="w-full min-h-screen flex p-5 pt-20">
+          {/* Added pt-20 for navbar spacing */}
           {/* Sidebar */}
           <div
             className="w-[25%] p-6 rounded-2xl shadow-md flex flex-col items-center relative z-10 border border-white/10"
