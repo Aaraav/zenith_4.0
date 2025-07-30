@@ -67,6 +67,7 @@ const Room = ({ socket }) => {
     const handleQuestion = (data) => {
       console.log("📩 Received question:", data);
       setQuestions([data]);
+      // Store the latest question in localStorage for persistence
       localStorage.setItem(`latestQuestion_${roomId}`, JSON.stringify([data]));
     };
 
@@ -75,6 +76,7 @@ const Room = ({ socket }) => {
       const errorQuestion = {
         question: "❌ Failed to generate question",
         timestamp: new Date().toISOString(),
+        error: error.message || "Unknown error",
       };
       setQuestions([errorQuestion]);
     };
