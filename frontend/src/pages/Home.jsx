@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/stateful-button";
 import { BackgroundBeamsWithCollision } from "../components/ui/background-beams-with-collision";
+import { useUser, SignInButton, SignedOut } from "@clerk/clerk-react";
 
 export default function Home({ socketId, socket }) {
   const navigate = useNavigate();
+  const { isSignedIn } = useUser();
   const [name, setName] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("DSA");
   const [ratings, setRatings] = useState([]);
@@ -123,7 +125,17 @@ export default function Home({ socketId, socket }) {
 
             {!roomId && (
               <div className="mt-6 text-center">
-                <Button onClick={handleSendData}>Join Matchmaking Queue</Button>
+                {isSignedIn ? (
+                  <Button onClick={handleSendData}>Join Matchmaking Queue</Button>
+                ) : (
+                  <SignedOut>
+                    <SignInButton mode="modal">
+                      <button className="w-full py-3 px-6 bg-gradient-to-r from-blue-500/80 to-purple-600/80 text-white font-semibold rounded-xl hover:from-blue-600/80 hover:to-purple-700/80 transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg">
+                        Sign In to Join Matchmaking
+                      </button>
+                    </SignInButton>
+                  </SignedOut>
+                )}
               </div>
             )}
           </div>
