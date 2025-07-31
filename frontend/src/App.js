@@ -35,32 +35,43 @@ function ProtectedRoute({ children }) {
 export default function App() {
   const [socketId, setSocketId] = useState(null);
   const [socket, setSocket] = useState(null);
+  const { isSignedIn } = useUser();
 
   useEffect(() => {
-    // Initialize socket connection
-    const socketConnection = io('https://zenith-4-0.onrender.com');  // Replace with your socket server URL
+    const socketConnection = io('https://zenith-4-0.onrender.com');
     setSocket(socketConnection);
-// https://zenith-4-0.onrender.com?
-    // Get the socketId once the socket connects
+
     socketConnection.on('connect', () => {
       setSocketId(socketConnection.id);
       console.log(`Socket connected with ID: ${socketConnection.id}`);
     });
 
-    // Cleanup the socket connection on component unmount
     return () => {
-      if (socketConnection) {
-        socketConnection.disconnect();
-      }
+      socketConnection.disconnect();
     };
   }, []);
+
+  // 💡 Clear localStorage when signed out
+ useEffect(() => {
+  if (isSignedIn === false) {
+    console.log('User signed out. Clearing localStorage and reloading...');
+    localStorage.clear();
+
+    if (!sessionStorage.getItem('reloadedOnLogout')) {
+      sessionStorage.setItem('reloadedOnLogout', 'true');
+      window.location.reload();
+    } else {
+      sessionStorage.removeItem('reloadedOnLogout');
+    }
+  }
+}, []);
+
 
   return (
     <RoomDetailsProvider>
       <Router>
         {/* <Header /> */}
-        <Navbar/>
-        
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home socketId={socketId} socket={socket} />} />
           <Route
@@ -71,9 +82,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-                      <Route path="/battle-history" element={<ProtectedRoute><BattleHistory /></ProtectedRoute>} />
-
-
+          <Route
+            path="/battle-history"
+            element={
+              <ProtectedRoute>
+                <BattleHistory />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/profile"
             element={

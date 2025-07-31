@@ -10,11 +10,11 @@ const VITE_CLERK_PUBLISHABLE_KEY = "pk_test_bGliZXJhbC1tYWNhcXVlLTM0LmNsZXJrLmFj
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
+  // <React.StrictMode>
       <ClerkProvider publishableKey={VITE_CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
         <App />
       </ClerkProvider>
-  </React.StrictMode>
+  // </React.StrictMode>
 );
 
 reportWebVitals();

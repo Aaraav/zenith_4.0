@@ -1,21 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import Compiler from "../Compiler"; // Your updated Compiler component
+import Compiler from "../Compiler";
 import Navbar from "../Navbar";
 
 const Room = ({ socket }) => {
   const { roomId } = useParams();
-  const containerRef = useRef(null);
-  const [questions, setQuestions] = useState([]);
+  const navigate = useNavigate();
 
-  // State to hold the identity of the currently logged-in user.
+  // Refs for DOM element and Zego instance
+  const containerRef = useRef(null);
+  const zegoInstanceRef = useRef(null);
+
+  // State management
+  const [questions, setQuestions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-  // State to hold the correctly ordered users for the Compiler props.
   const [compilerUsers, setCompilerUsers] = useState(null);
 
+  // Effect to identify the current user from localStorage
   useEffect(() => {
-    // This effect runs once to determine the current user's identity from localStorage.
     let loggedInUser = null;
     const userDetailsString = localStorage.getItem("userdetails");
     if (userDetailsString) {
@@ -26,99 +29,31 @@ const Room = ({ socket }) => {
         console.error("Error parsing 'userdetails' from localStorage:", error);
       }
     }
-
+    
     if (loggedInUser) {
       setCurrentUser(loggedInUser);
     } else {
-      console.error(
-        "CRITICAL: Could not find 'username' in localStorage. The application may not work correctly."
-      );
-      // Fallback for safety, though this is not ideal.
+      console.error("CRITICAL: Could not find 'username' in localStorage.");
+      // Fallback to derive user from roomId if not found in storage
       const [u1] = roomId.split("_");
       setCurrentUser(u1);
     }
   }, [roomId]);
 
+  // Effect to determine the opponent and set user order for the compiler
   useEffect(() => {
-    // This effect runs after the currentUser is identified. It prepares the props
-    // for the Compiler component, ensuring 'user1' is always the current user.
     if (currentUser) {
-      const urlUsers = roomId.split("_");
-      const u1 = urlUsers[0];
-      const u2 = urlUsers[1];
-
+      const [u1, u2] = roomId.split("_");
       if (currentUser === u1) {
         setCompilerUsers({ user1: u1, user2: u2 });
       } else {
-        // If I am user2, swap the props so that the Compiler receives me as 'user1'.
         setCompilerUsers({ user1: u2, user2: u1 });
       }
     }
   }, [currentUser, roomId]);
 
+  // Effect to load any saved questions from a previous session
   useEffect(() => {
-    // This effect now handles all socket events and the Zego call initialization.
-    // It will only run when the socket is ready and the compilerUsers are identified.
-    if (!socket || !compilerUsers) return;
-
-    // Your console.log is now here, where it will have the correct value.
-    console.log("Compiler users are now set:", compilerUsers);
-
-    const handleQuestion = (data) => {
-      console.log("📩 Received question:", data);
-      setQuestions([data]);
-      // Store the latest question in localStorage for persistence
-      localStorage.setItem(`latestQuestion_${roomId}`, JSON.stringify([data]));
-    };
-
-    const handleError = (error) => {
-      console.error("Error generating question:", error);
-      const errorQuestion = {
-        question: "❌ Failed to generate question",
-        timestamp: new Date().toISOString(),
-        error: error.message || "Unknown error",
-      };
-      setQuestions([errorQuestion]);
-    };
-
-    socket.on("question-generated", handleQuestion);
-    socket.on("questionError", handleError);
-
-    // Initialize the Zego video call
-    const initCall = async () => {
-      if (!containerRef.current || !ZegoUIKitPrebuilt) return;
-      const appId = 1383669195;
-      const serverSecret = "7543664457db804ada784b12440dea98";
-      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-        appId,
-        serverSecret,
-        roomId,
-        Date.now().toString(),
-        currentUser
-      );
-      const zc = ZegoUIKitPrebuilt.create(kitToken);
-      zc.joinRoom({
-        container: containerRef.current,
-        sharedLinks: [
-          {
-            name: "Copy Link",
-            url: `${window.location.origin}/room/${roomId}`,
-          },
-        ],
-        scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
-        showScreenSharingButton: false,
-      });
-    };
-    initCall();
-
-    return () => {
-      socket.off("question-generated", handleQuestion);
-      socket.off("questionError", handleError);
-    };
-  }, [roomId, socket, currentUser, compilerUsers]); // This effect now depends on compilerUsers
-
-  useEffect(() => {
-    // This effect loads the latest question from storage on initial render.
     const savedQuestion = localStorage.getItem(`latestQuestion_${roomId}`);
     if (savedQuestion) {
       try {
@@ -132,14 +67,99 @@ const Room = ({ socket }) => {
     }
   }, [roomId]);
 
+  // Main effect for initializing Zego, handling socket events, and cleaning up
+  useEffect(() => {
+    // Wait until all required data is available
+    if (!socket || !compilerUsers || !currentUser) return;
+
+    // --- 1. Socket Event Handlers ---
+
+    const handleQuestion = (data) => {
+      setQuestions([data]);
+      localStorage.setItem(`latestQuestion_${roomId}`, JSON.stringify([data]));
+    };
+
+    const handleError = (error) => {
+      console.error("Error generating question:", error);
+      setQuestions([{
+        question: "❌ Failed to generate question",
+        timestamp: new Date().toISOString(),
+        error: error.message || "Unknown error",
+      }]);
+    };
+
+    // Handles the auto-exit functionality
+    const handleOpponentDisconnected = () => {
+      alert("Your opponent has left the room. You will be redirected.");
+      if (zegoInstanceRef.current) {
+        zegoInstanceRef.current.destroy();
+        zegoInstanceRef.current = null;
+      }
+      navigate("/");
+    };
+
+    socket.on("question-generated", handleQuestion);
+    socket.on("questionError", handleError);
+    socket.on("opponentDisconnected", handleOpponentDisconnected);
+
+    // --- 2. Zego Video Call Initialization ---
+
+    // Initialize only if the container exists and a Zego instance hasn't been created yet
+    if (containerRef.current && !zegoInstanceRef.current) {
+      const appId = 1383669195; // Your App ID
+      const serverSecret = "7543664457db804ada784b12440dea98"; // Your Server Secret
+      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+        appId,
+        serverSecret,
+        roomId,
+        Date.now().toString(),
+        currentUser
+      );
+
+      const zc = ZegoUIKitPrebuilt.create(kitToken);
+      zegoInstanceRef.current = zc; // Store instance in ref
+
+      zc.joinRoom({
+        container: containerRef.current,
+        prejoinView: false,
+        turnOnCameraWhenJoining: true,
+        turnOnMicrophoneWhenJoining: true,
+        sharedLinks: [{
+          name: "Copy Link",
+          url: `${window.location.origin}/room/${roomId}`,
+        }],
+        scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
+        showScreenSharingButton: false,
+      });
+    }
+
+    // --- 3. Cleanup Function ---
+
+    // This runs when the component unmounts (e.g., user navigates away)
+    return () => {
+      console.log("Cleaning up Room component...");
+      socket.off("question-generated", handleQuestion);
+      socket.off("questionError", handleError);
+    socket.off("opponentDisconnected", handleOpponentDisconnected);
+
+      // Destroy the Zego instance to release camera/mic and resources
+      if (zegoInstanceRef.current) {
+        zegoInstanceRef.current.destroy();
+        zegoInstanceRef.current = null;
+      }
+    };
+  }, [socket, compilerUsers, currentUser, roomId, navigate]);
+
   return (
     <>
       <Navbar />
       <div className="bg-black min-h-screen">
         <div className="relative w-screen h-screen flex overflow-hidden pt-20">
-          {/* Added pt-20 for navbar spacing */}
+          {/* Video Call Container */}
           <div ref={containerRef} className="w-[50vw] h-full" />
-          <div className="flex flex-wrap w-[50vw]">
+          
+          <div className="flex flex-col w-[50vw]">
+            {/* Questions Box */}
             <div
               className="w-full h-[50vh] p-6 overflow-y-auto border border-white/10"
               style={{
@@ -150,7 +170,6 @@ const Room = ({ socket }) => {
               <h2 className="text-xl font-bold mb-4 text-white">
                 AI CP/DSA Questions
               </h2>
-
               <ul className="space-y-4">
                 {questions.length > 0 &&
                   (() => {
@@ -165,9 +184,7 @@ const Room = ({ socket }) => {
                       >
                         <div className="text-sm text-white/70 mb-1">
                           Latest Question -{" "}
-                          {new Date(
-                            lastQuestion.timestamp
-                          ).toLocaleTimeString()}
+                          {new Date(lastQuestion.timestamp).toLocaleTimeString()}
                         </div>
                         <div
                           className="text-white/90"
@@ -181,19 +198,19 @@ const Room = ({ socket }) => {
               </ul>
             </div>
 
+            {/* Compiler Box */}
             <div className="flex flex-wrap h-[50vh] w-full">
-              {/* Render the compiler only after the user order has been determined */}
               {compilerUsers ? (
                 <Compiler
                   socket={socket}
-                  user1={compilerUsers.user1} // This is now guaranteed to be the current user
-                  user2={compilerUsers.user2} // This is now guaranteed to be the opponent
+                  user1={compilerUsers.user1}
+                  user2={compilerUsers.user2}
                   room={roomId}
                   questions={questions}
                 />
               ) : (
                 <div
-                  className="p-4 text-center w-full border border-white/10"
+                  className="p-4 text-center w-full border border-white/10 flex items-center justify-center"
                   style={{
                     backgroundColor: "rgba(0, 0, 0, 0.1)",
                     backdropFilter: "blur(10px)",

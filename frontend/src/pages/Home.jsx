@@ -3,90 +3,117 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/stateful-button";
 import { BackgroundBeamsWithCollision } from "../components/ui/background-beams-with-collision";
 import { useUser, SignInButton, SignedOut } from "@clerk/clerk-react";
+import axios from "axios";
 
-export default function Home({ socketId, socket }) {
+// ✅ Removed `socketId` from props as it's redundant.
+// We can get the most current ID from the `socket` object itself.
+export default function Home({ socket }) {
   const navigate = useNavigate();
-  const { isSignedIn } = useUser();
-  const [name, setName] = useState("");
+  const { user,isSignedIn } = useUser();
+  const [name, setName] = useState("Guest");
   const [selectedTopic, setSelectedTopic] = useState("DSA");
   const [ratings, setRatings] = useState([]);
   const [averageRating, setAverageRating] = useState(0);
   const [roomId, setRoomId] = useState(null);
   const [matchedMsg, setMatchedMsg] = useState("");
   const [showUsernamePopup, setShowUsernamePopup] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // ✅ Effect 1: Handles fetching user data.
+  // Why this is better: This effect now *only* runs when the user's sign-in
+  // status changes, which is the correct behavior.
   useEffect(() => {
-    // Fetch user details from localStorage
-    const userDetails = localStorage.getItem("userdetails");
-    if (userDetails) {
-      const parsed = JSON.parse(userDetails);
-      const username = parsed.username?.trim();
-      setName(username && username.length > 0 ? username : "Guest");
-      setRatings(parsed.ratings || []);
-    } else {
-      setName("Guest");
-    }
+    const fetchUsername = async () => {
+      console.log(user);
+      const clerkId = user?.id || localStorage.getItem("clerkId");
+      if (!isSignedIn || !clerkId) {
+        // Clean up state on sign-out
+        setName("Guest");
+        setRatings([]);
+        return;
+      }
 
-    // Listen for roomJoined event from the server
-    if (socket) {
-      socket.on("roomJoined", ({ roomId, users }) => {
-        console.log(`🎉 Matched and joined room: ${roomId} with users:`, users);
-        const hasTwoUsersWithNames =
-          users.filter((u) => u.username).length === 2;
-        localStorage.setItem("socketId", socket.id); // Store socketId for future use
-        setRoomId(roomId); // Store roomId to conditionally show matched message
-        setMatchedMsg(
-          `🎉 You have been matched with a user! Room ID: ${roomId}`
+      try {
+        setLoading(true);
+        const response = await axios.get(
+          `https://zenith-4-0-http.onrender.com/api/users/getUser/${clerkId}`
         );
-        navigate(`/room/${roomId}`);
-      });
-    }
 
-    // Cleanup the socket listener when component unmounts
-    return () => {
-      if (socket) {
-        socket.off("roomJoined");
+        if (response.data.success && response.data.user) {
+          const user = response.data.user;
+          const username = user.username?.trim();
+          
+          if (username) {
+            setName(username);
+          }
+          setRatings(user.ratings || []);
+          localStorage.setItem("userdetails", JSON.stringify(user));
+        }
+      } catch (err) {
+        console.error("❌ Failed to fetch user:", err);
+      } finally {
+        setLoading(false);
       }
     };
-  }, [socket, navigate]); // Dependency on socket to re-run when socket is initialized
 
+    fetchUsername();
+  }, [isSignedIn]);
+
+  // ✅ Effect 2: Handles socket event listeners.
+  // Why this is better: Separating this from data fetching makes the code cleaner.
+  // It correctly sets up and tears down the listener when the socket connection changes.
+  useEffect(() => {
+    if (!socket) return;
+
+    const onRoomJoined = ({ roomId, users }) => {
+      console.log(`🎉 Matched and joined room: ${roomId} with users:`, users);
+      localStorage.setItem("socketId", socket.id);
+      setRoomId(roomId);
+      setMatchedMsg(`🎉 You have been matched with a user!`);
+      navigate(`/room/${roomId}`);
+    };
+
+    socket.on("roomJoined", onRoomJoined);
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      socket.off("roomJoined", onRoomJoined);
+    };
+  }, [socket, navigate]);
+
+  // ✅ Effect 3: Recalculates average rating. (No change needed)
   useEffect(() => {
     if (ratings.length > 0) {
-      const totalRating = ratings.reduce((sum, rating) => sum + rating, 0);
-      setAverageRating(totalRating / ratings.length);
+      const total = ratings.reduce((sum, r) => sum + r, 0);
+      setAverageRating(total / ratings.length);
     } else {
       setAverageRating(0);
     }
   }, [ratings]);
 
   const handleSendData = () => {
-    // Check if user has no username or has "Guest" as username
-    if (!name || name.trim() === "" || name === "Guest") {
+    if (name === "Guest" || !name.trim()) {
       setShowUsernamePopup(true);
       return;
     }
 
-    if (!selectedTopic || averageRating === undefined) {
-      console.error("⚠️ Invalid data");
+    if (!socket || !selectedTopic || averageRating === undefined) {
+      console.error("⚠️ Invalid data or socket connection");
       return;
     }
 
     localStorage.setItem("selectedTopic", selectedTopic);
 
-    if (socket) {
-      socket.emit("joinQueue", {
-        username: name,
-        topic: selectedTopic,
-        averageRating,
-        socketId, // Pass the socketId when emitting data
-      });
-    }
-
-    // Return a promise that never resolves - the loading will continue until match is found
-    return new Promise((resolve, reject) => {
-      // The promise will remain pending until the component is unmounted or user navigates away
-      // This keeps the button in loading state until match is found via the existing socket logic
+    // ✅ Use `socket.id` directly for the most up-to-date ID.
+    socket.emit("joinQueue", {
+      username: name,
+      topic: selectedTopic,
+      averageRating,
+      socketId: socket.id,
     });
+
+    // Keep the button in a loading state until a match is found and we navigate away.
+    return new Promise(() => {});
   };
 
   const handleGoToProfile = () => {
@@ -98,6 +125,7 @@ export default function Home({ socketId, socket }) {
     setShowUsernamePopup(false);
   };
 
+  // The JSX remains unchanged as it was already well-structured.
   return (
     <>
       <BackgroundBeamsWithCollision className="min-h-screen h-[100vh] absolute top-0">
@@ -114,7 +142,7 @@ export default function Home({ socketId, socket }) {
             </h1>
 
             <div className="text-center mt-10 text-xl font-bold text-white">
-              Hello, {name || "Guest"}!
+              Hello, {name}!
             </div>
 
             {matchedMsg && (
@@ -126,7 +154,9 @@ export default function Home({ socketId, socket }) {
             {!roomId && (
               <div className="mt-6 text-center">
                 {isSignedIn ? (
-                  <Button onClick={handleSendData}>Join Matchmaking Queue</Button>
+                  <Button onClick={handleSendData}>
+                    Join Matchmaking Queue
+                  </Button>
                 ) : (
                   <SignedOut>
                     <SignInButton mode="modal">

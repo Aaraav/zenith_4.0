@@ -424,7 +424,7 @@ export default function Profile() {
 
                 {/* Big Number */}
                 <p className="text-5xl font-bold text-white">
-                  {userDetails.finalRating}
+                  {userDetails && userDetails.finalRating}
                 </p>
               </div>
 
