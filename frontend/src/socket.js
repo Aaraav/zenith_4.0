@@ -6,7 +6,10 @@ const useSocket = (url) => {
 
   useEffect(() => {
     // Create socket connection when the component mounts
-    const socketIo = io("https://zenith-4-0.onrender.com");
+    const socketIo = io(
+      "https://zenith-4-0.onrender.com"  
+    
+    );
 
     // Store the socket instance in the state
     setSocket(socketIo);

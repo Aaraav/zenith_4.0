@@ -38,7 +38,10 @@ export default function App() {
   const { isSignedIn } = useUser();
 
   useEffect(() => {
-    const socketConnection = io('https://zenith-4-0.onrender.com');
+    const socketConnection = io(
+      'https://zenith-4-0.onrender.com'
+
+    );
     setSocket(socketConnection);
 
     socketConnection.on('connect', () => {
