@@ -2,7 +2,8 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 const http = require('http');
 const { Server } = require("socket.io");
 const User = require('./models/User');
@@ -27,8 +28,7 @@ app.use(express.json());
 app.get('/', (req, res) => res.send('Zenith Coding Platform API is running...'));
 
 // --- AI SETUP ---
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyASaYDYt5VNobHpcpsm3ngIUn1rD49UJgM");
-
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "AIzaSyDry1FOltBTpna3-XUYMH_iSI0jDmXGvLk" });
 // --- IN-MEMORY STORES ---
 const rooms = {}; // For active coding rooms
 let waitingUsers = []; // For matchmaking queue
@@ -86,9 +86,23 @@ async function performEvaluation(roomId) {
           User 2 Rating Increment: [A single number for User 2, following the rules.]
         `;
         
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(prompt);
-        const aiEvaluation = result.response.text();
+       // ✅ 1. Use the new SDK method (No 'getGenerativeModel')
+        const result = await genAI.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: prompt
+        });
+
+        // ✅ 2. Safe Text Extraction (Prevents 'result.text is not a function' error)
+        let aiEvaluation = "";
+        
+        if (typeof result.text === "function") {
+            aiEvaluation = result.text();
+        } else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+            aiEvaluation = result.candidates[0].content.parts[0].text;
+        } else {
+            console.error("⚠️ AI Evaluation Failed: Unexpected response format");
+            aiEvaluation = "User 1 Analysis: Error. User 2 Analysis: Error. User 1 Rating Increment: 0. User 2 Rating Increment: 0.";
+        }
 
         const user1Analysis = aiEvaluation.match(/User 1 Analysis:([\s\S]*?)User 2 Analysis:/)?.[1]?.trim() || "No analysis provided.";
         const user2Analysis = aiEvaluation.match(/User 2 Analysis:([\s\S]*?)User 1 Rating Increment:/)?.[1]?.trim() || "No analysis provided.";
@@ -195,10 +209,36 @@ async function generateQuestion(user1, user2, room) {
         }
         
         const avgRating = (r1.finalRating + r2.finalRating) / 2;
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // const model = genAI.models.generateContent({ model: "gemini-2.0-flash" });
         const prompt = `Generate a competitive programming problem as a self-contained HTML block. Requirements: - Difficulty suitable for programmers with an average rating of ${avgRating.toFixed(1)}. - The entire output MUST be only the HTML code. Do NOT include markdown fences (\`\`\`html) or any other text. - Include a problem statement, input/output requirements, and 2 sample test cases with explanations. - Format similar to a Codeforces/LeetCode problem.`;
-        const result = await model.generateContent(prompt);
-        const rawText = result.response.text().trim();
+// ... inside generateQuestion function ...
+
+console.log("🤖 Requesting question from AI...");
+
+const result = await genAI.models.generateContent({
+    model: "gemini-2.0-flash", 
+    contents: prompt 
+});
+
+// --- 👇 REPLACE YOUR ERROR LINES WITH THIS BLOCK 👇 ---
+let rawText = "";
+
+// Check 1: Try the helper method (if it exists)
+if (typeof result.text === "function") {
+    rawText = result.text();
+} 
+// Check 2: Manually dig into the JSON structure (Fallback)
+else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+    rawText = result.candidates[0].content.parts[0].text;
+} 
+else {
+    console.error("⚠️ Unexpected AI Response:", JSON.stringify(result, null, 2));
+    throw new Error("AI response format was not recognized.");
+}
+// --- 👆 END REPLACEMENT 👆 ---
+
+const cleanText = rawText.trim();
+console.log("📝 Generated Question HTML:", cleanText.substring(0, 50) + "...");
         
         const htmlMatch = rawText.match(/```html([\s\S]*?)```/);
         const extractedHtml = htmlMatch ? htmlMatch[1].trim() : rawText;
