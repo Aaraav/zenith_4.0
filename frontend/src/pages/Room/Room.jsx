@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
 import Compiler from "../Compiler";
@@ -8,16 +8,15 @@ const Room = ({ socket }) => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  // Refs for DOM element and Zego instance
-  const containerRef = useRef(null);
-  const zegoInstanceRef = useRef(null);
-
+  // Ref to store the Zego instance so we can destroy it properly
+  const zpRef = useRef(null);
+  
   // State management
   const [questions, setQuestions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [compilerUsers, setCompilerUsers] = useState(null);
 
-  // Effect to identify the current user from localStorage
+  // --- 1. User Identification Logic ---
   useEffect(() => {
     let loggedInUser = null;
     const userDetailsString = localStorage.getItem("userdetails");
@@ -33,14 +32,12 @@ const Room = ({ socket }) => {
     if (loggedInUser) {
       setCurrentUser(loggedInUser);
     } else {
-      console.error("CRITICAL: Could not find 'username' in localStorage.");
-      // Fallback to derive user from roomId if not found in storage
-      const [u1] = roomId.split("_");
-      setCurrentUser(u1);
+      const [u1] = roomId ? roomId.split("_") : ["Guest"];
+      setCurrentUser(u1 || "Guest");
     }
   }, [roomId]);
 
-  // Effect to determine the opponent and set user order for the compiler
+  // --- 2. Compiler User Order Logic ---
   useEffect(() => {
     if (currentUser) {
       const [u1, u2] = roomId.split("_");
@@ -52,7 +49,7 @@ const Room = ({ socket }) => {
     }
   }, [currentUser, roomId]);
 
-  // Effect to load any saved questions from a previous session
+  // --- 3. Load Saved Questions ---
   useEffect(() => {
     const savedQuestion = localStorage.getItem(`latestQuestion_${roomId}`);
     if (savedQuestion) {
@@ -67,12 +64,9 @@ const Room = ({ socket }) => {
     }
   }, [roomId]);
 
-  // Main effect for initializing Zego, handling socket events, and cleaning up
+  // --- 4. Socket Logic ---
   useEffect(() => {
-    // Wait until all required data is available
-    if (!socket || !compilerUsers || !currentUser) return;
-
-    // --- 1. Socket Event Handlers ---
+    if (!socket) return;
 
     const handleQuestion = (data) => {
       setQuestions([data]);
@@ -88,26 +82,48 @@ const Room = ({ socket }) => {
       }]);
     };
 
-    // Handles the auto-exit functionality
     const handleOpponentDisconnected = () => {
       alert("Your opponent has left the room. You will be redirected.");
-      if (zegoInstanceRef.current) {
-        zegoInstanceRef.current.destroy();
-        zegoInstanceRef.current = null;
+      // Cleanup Zego before navigating
+      if (zpRef.current) {
+        zpRef.current.destroy();
+        zpRef.current = null;
       }
       navigate("/");
     };
 
     socket.on("question-generated", handleQuestion);
     socket.on("questionError", handleError);
-    socket.on("opponentDisconnected", handleOpponentDisconnected);
+    socket.on("opponentDisconnected", handleOpponentDisconnected);
 
-    // --- 2. Zego Video Call Initialization ---
+    return () => {
+      socket.off("question-generated", handleQuestion);
+      socket.off("questionError", handleError);
+      socket.off("opponentDisconnected", handleOpponentDisconnected);
+    };
+  }, [socket, roomId, navigate]);
 
-    // Initialize only if the container exists and a Zego instance hasn't been created yet
-    if (containerRef.current && !zegoInstanceRef.current) {
-     const appId = 1891360647; // Your App ID
-      const serverSecret = "cb5bed191b9d7447f597fe54dea09d16"; // Your Server Secret
+  // --- 5. Zego Initialization (Callback Ref Pattern) ---
+ 
+  const myMeeting = useCallback(async (element) => {
+    // 1. If we are unmounting (element is null) or re-mounting, destroy the old instance first.
+    if (zpRef.current) {
+      console.log("Destroying previous Zego instance...");
+      try {
+        zpRef.current.destroy();
+      } catch (err) {
+        console.warn("Error destroying Zego instance:", err);
+      }
+      zpRef.current = null;
+    }
+
+    // 2. If element exists and we have a user, create a new instance.
+    if (element && currentUser) {
+      console.log("Initializing Zego for user:", currentUser);
+      
+      const appId = 1891360647; 
+      const serverSecret = "cb5bed191b9d7447f597fe54dea09d16"; 
+      
       const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
         appId,
         serverSecret,
@@ -116,39 +132,31 @@ const Room = ({ socket }) => {
         currentUser
       );
 
-      const zc = ZegoUIKitPrebuilt.create(kitToken);
-      zegoInstanceRef.current = zc; // Store instance in ref
+      const zp = ZegoUIKitPrebuilt.create(kitToken);
+      zpRef.current = zp;
 
-      zc.joinRoom({
-        container: containerRef.current,
-        prejoinView: false,
-        turnOnCameraWhenJoining: true,
-        turnOnMicrophoneWhenJoining: true,
-        sharedLinks: [{
-          name: "Copy Link",
-          url: `${window.location.origin}/room/${roomId}`,
-        }],
-        scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
-        showScreenSharingButton: false,
-      });
-    }
-
-    // --- 3. Cleanup Function ---
-
-    // This runs when the component unmounts (e.g., user navigates away)
-    return () => {
-      console.log("Cleaning up Room component...");
-      socket.off("question-generated", handleQuestion);
-      socket.off("questionError", handleError);
-    socket.off("opponentDisconnected", handleOpponentDisconnected);
-
-      // Destroy the Zego instance to release camera/mic and resources
-      if (zegoInstanceRef.current) {
-        zegoInstanceRef.current.destroy();
-        zegoInstanceRef.current = null;
+      try {
+        zp.joinRoom({
+          container: element,
+          prejoinView: false,
+          turnOnCameraWhenJoining: true,
+          turnOnMicrophoneWhenJoining: true,
+          sharedLinks: [{
+            name: "Copy Link",
+            url: `${window.location.origin}/room/${roomId}`,
+          }],
+          scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
+          showScreenSharingButton: false,
+          onLeaveRoom: () => {
+            navigate('/');
+          },
+          // Add error handling callbacks if available or needed
+        });
+      } catch (error) {
+        console.error("Zego Join Room Failed:", error);
       }
-    };
-  }, [socket, compilerUsers, currentUser, roomId, navigate]);
+    }
+  }, [currentUser, roomId, navigate]);
 
   return (
     <>
@@ -156,7 +164,21 @@ const Room = ({ socket }) => {
       <div className="bg-black min-h-screen">
         <div className="relative w-screen h-screen flex overflow-hidden pt-20">
           {/* Video Call Container */}
-          <div ref={containerRef} className="w-[50vw] h-full" />
+          <div className="w-[50vw] h-full bg-gray-900 relative">
+             {/* We conditionally render the DIV. 
+                 The 'ref' callback (myMeeting) will trigger ONLY when currentUser is ready 
+                 and the div is physically placed in the DOM. */}
+             {currentUser ? (
+               <div 
+                 ref={myMeeting} 
+                 className="w-full h-full"
+               />
+             ) : (
+               <div className="absolute inset-0 flex items-center justify-center text-white/50 bg-gray-900 z-10">
+                 Loading User Profile...
+               </div>
+             )}
+          </div>
           
           <div className="flex flex-col w-[50vw]">
             {/* Questions Box */}
