@@ -106,8 +106,8 @@ const Room = ({ socket }) => {
 
     // Initialize only if the container exists and a Zego instance hasn't been created yet
     if (containerRef.current && !zegoInstanceRef.current) {
-      const appId = 1383669195; // Your App ID
-      const serverSecret = "7543664457db804ada784b12440dea98"; // Your Server Secret
+     const appId = 1891360647; // Your App ID
+      const serverSecret = "cb5bed191b9d7447f597fe54dea09d16"; // Your Server Secret
       const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
         appId,
         serverSecret,
