@@ -28,7 +28,7 @@ app.use(express.json());
 app.get('/', (req, res) => res.send('Zenith Coding Platform API is running...'));
 
 // --- AI SETUP ---
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "AIzaSyDry1FOltBTpna3-XUYMH_iSI0jDmXGvLk" });
+const genAI = new GoogleGenAI({ apiKey: process.env.API_KEY});
 // --- IN-MEMORY STORES ---
 const rooms = {}; // For active coding rooms
 let waitingUsers = []; // For matchmaking queue
