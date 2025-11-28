@@ -15,7 +15,7 @@ function Compiler({ socket, user1, user2, room, questions }) {
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const hasJoinedRoom = useRef(false);
-
+  const [language, setLanguage] = useState("javascript");
   useEffect(() => {
     // This effect handles the reload behavior.
     const handleBeforeUnload = () => {
@@ -151,7 +151,7 @@ function Compiler({ socket, user1, user2, room, questions }) {
   };
 
   return (
-    <div className="p-4 w-full h-full flex flex-col bg-black text-white relative">
+    <div className="p-4 w-screen h-screen absolute flex flex-col bg-black text-white ">
       {/* --- CODING VIEW --- */}
       <div className="mb-4 flex justify-between items-center">
         <CompilerButton
@@ -165,6 +165,21 @@ function Compiler({ socket, user1, user2, room, questions }) {
         >
           {hasSubmitted ? "Submitted" : "Submit Your Code"}
         </CompilerButton>
+        {/* dropdown UI */}
+        <div className="flex items-center space-x-4">
+          <label className="text-sm text-gray-300">Language:</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="bg-gray-800 text-white px-2 py-1 rounded"
+          >
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+          </select>
+        </div>
         <div className="font-mono text-lg text-yellow-400">{status}</div>
       </div>
 
@@ -173,7 +188,7 @@ function Compiler({ socket, user1, user2, room, questions }) {
         <Editor
           height="50vh"
           theme="vs-dark"
-          language="javascript"
+          language={language}
           value={myCode}
           onChange={handleEditorChange}
           onMount={() => setIsEditorReady(true)}

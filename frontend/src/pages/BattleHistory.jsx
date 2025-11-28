@@ -83,8 +83,8 @@ export default function BattleHistory() {
 
   return (
     <>
-      <BackgroundBeamsWithCollision className="min-h-screen">
-        <div className="min-h-screen font-sans pt-20">
+      <BackgroundBeamsWithCollision className="h-screen w-screen absolute inset-0 ">
+        <div className="font-sans pt-20 h-full w-full overflow-y-auto">
           <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
             <h1 className="text-3xl font-bold text-white mb-6 px-4 sm:px-0">
               Battle Dashboard
