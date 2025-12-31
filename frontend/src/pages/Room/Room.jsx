@@ -121,8 +121,8 @@ const Room = ({ socket }) => {
     if (element && currentUser) {
       console.log("Initializing Zego for user:", currentUser);
       
-      const appId = 1891360647; 
-      const serverSecret = "cb5bed191b9d7447f597fe54dea09d16"; 
+      const appId = 93354659; 
+      const serverSecret = "c3af6d4ba6f052dfbe705eeda9d33d84"; 
       
       const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
         appId,
