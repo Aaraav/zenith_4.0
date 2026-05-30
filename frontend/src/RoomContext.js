@@ -1,32 +1,55 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { io } from 'socket.io-client';  // Import socket.io-client
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { io } from "socket.io-client";
+import { useAuth } from "@clerk/clerk-react";
 
 const RoomDetailsContext = createContext();
 
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+
 export const RoomDetailsProvider = ({ children }) => {
-  const [name, setName] = useState('');
-  const [topicSelected, setTopicSelected] = useState('');
+  const { isSignedIn, getToken } = useAuth();
+  const [name, setName] = useState("");
+  const [topicSelected, setTopicSelected] = useState("");
   const [rating, setRating] = useState(null);
-  const [socket, setSocket] = useState(null);  // To store socket instance
-  const [socketId, setSocketId] = useState(null);  // To store socket ID
-const [codee,setcodee]=useState("");
+  const [socket, setSocket] = useState(null);
+  const [socketId, setSocketId] = useState(null);
+  const [code, setCode] = useState("");
+
   useEffect(() => {
-    const socketConnection = io(
-      'https://zenith-4-0.onrender.com'
-    
-    );  // Update with your server URL
+    if (!isSignedIn || !SOCKET_URL) {
+      setSocket(null);
+      setSocketId(null);
+      return undefined;
+    }
 
-    socketConnection.on('connect', () => {
-      setSocketId(socketConnection.id);  // Set the socket ID when connected
-    });
+    let active = true;
+    let s = null;
 
-    setSocket(socketConnection);
+    (async () => {
+      const token = await getToken();
+      if (!active || !token) return;
 
-    // Cleanup socket connection on component unmount
+      s = io(SOCKET_URL, {
+        auth: { token },
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+      });
+      s.on("connect", () => active && setSocketId(s.id));
+      s.on("disconnect", () => active && setSocketId(null));
+      s.on("connect_error", (err) => {
+        // eslint-disable-next-line no-console
+        console.error("Socket connect error:", err.message);
+      });
+      if (active) setSocket(s);
+    })();
+
     return () => {
-      socketConnection.disconnect();
+      active = false;
+      if (s) s.disconnect();
+      setSocket(null);
+      setSocketId(null);
     };
-  }, []);
+  }, [isSignedIn, getToken]);
 
   return (
     <RoomDetailsContext.Provider
@@ -39,8 +62,8 @@ const [codee,setcodee]=useState("");
         setRating,
         socket,
         socketId,
-        codee,
-        setcodee
+        code,
+        setCode,
       }}
     >
       {children}

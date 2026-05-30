@@ -1,251 +1,196 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ZegoUIKitPrebuilt } from "@zegocloud/zego-uikit-prebuilt";
-import Compiler from "../Compiler";
-import Navbar from "../Navbar";
+import AgoraRTC, { AgoraRTCProvider } from "agora-rtc-react";
+import { useRoomDetails } from "../../RoomContext";
+import { api } from "../../lib/api";
+import { sanitizeQuestion } from "../../lib/sanitize";
 
-const Room = ({ socket }) => {
+// Components
+import Compiler from "../Compiler";
+import VideoCallInner from "./VideoCallInner"; // Moved to separate for clarity
+
+const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
+
+const Room = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { socket } = useRoomDetails();
 
-  // Ref to store the Zego instance so we can destroy it properly
-  const zpRef = useRef(null);
-  
-  // State management
   const [questions, setQuestions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [compilerUsers, setCompilerUsers] = useState(null);
+  const [agoraToken, setAgoraToken] = useState(null);
+  const [agoraUid, setAgoraUid] = useState(0);
+  const [tokenError, setTokenError] = useState(null);
 
-  // --- 1. User Identification Logic ---
+  const agoraClient = useRef(
+    AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }),
+  );
+
   useEffect(() => {
     let loggedInUser = null;
-    const userDetailsString = localStorage.getItem("userdetails");
-    if (userDetailsString) {
-      try {
-        const userDetails = JSON.parse(userDetailsString);
-        loggedInUser = userDetails.username?.trim();
-      } catch (error) {
-        console.error("Error parsing 'userdetails' from localStorage:", error);
-      }
-    }
-    
-    if (loggedInUser) {
-      setCurrentUser(loggedInUser);
-    } else {
-      const [u1] = roomId ? roomId.split("_") : ["Guest"];
-      setCurrentUser(u1 || "Guest");
-    }
+    try {
+      const stored = localStorage.getItem("userdetails");
+      if (stored) loggedInUser = JSON.parse(stored).username?.trim();
+    } catch {}
+    setCurrentUser(loggedInUser || roomId?.split("_")[0] || "Guest");
   }, [roomId]);
 
-  // --- 2. Compiler User Order Logic ---
   useEffect(() => {
-    if (currentUser) {
-      const [u1, u2] = roomId.split("_");
-      if (currentUser === u1) {
-        setCompilerUsers({ user1: u1, user2: u2 });
-      } else {
-        setCompilerUsers({ user1: u2, user2: u1 });
-      }
-    }
+    if (!currentUser) return;
+    const [u1, u2] = roomId.split("_");
+    setCompilerUsers(
+      currentUser === u1 ? { user1: u1, user2: u2 } : { user1: u2, user2: u1 },
+    );
   }, [currentUser, roomId]);
 
-  // --- 3. Load Saved Questions ---
   useEffect(() => {
-    const savedQuestion = localStorage.getItem(`latestQuestion_${roomId}`);
-    if (savedQuestion) {
-      try {
-        const parsed = JSON.parse(savedQuestion);
-        if (Array.isArray(parsed)) {
-          setQuestions(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to parse questions from localStorage", e);
-      }
+    if (!roomId) return;
+
+    // 1. Initial sync from localStorage for immediate UI
+    const stored = localStorage.getItem(`latestQuestion_${roomId}`);
+    if (stored) {
+      try { setQuestions(JSON.parse(stored)); } catch {}
     }
+
+    // 2. Authoritative sync from Backend
+    api.get(`/api/rooms/${roomId}`)
+      .then(res => {
+        if (res.data.success && res.data.room.question) {
+          const qData = {
+            questionData: res.data.room.questionData,
+            question: res.data.room.question,
+            timestamp: res.data.room.createdAt,
+            roomId: res.data.room.roomId
+          };
+          setQuestions([qData]);
+          localStorage.setItem(`latestQuestion_${roomId}`, JSON.stringify([qData]));
+        }
+      })
+      .catch(err => console.error("Failed to sync room data:", err));
+
+    // 3. Agora Token
+    api
+      .get(`/api/agora/token?channel=${encodeURIComponent(roomId)}&uid=0`)
+      .then((res) => {
+        setAgoraToken(res.data.token);
+        setAgoraUid(res.data.uid);
+      })
+      .catch(() => setTokenError("Video service unavailable."));
   }, [roomId]);
 
-  // --- 4. Socket Logic ---
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !roomId) return;
 
-    const handleQuestion = (data) => {
+    const join = () => socket.emit("joinRoom", { roomId });
+    join();
+
+    const onQuestion = (data) => {
       setQuestions([data]);
       localStorage.setItem(`latestQuestion_${roomId}`, JSON.stringify([data]));
     };
 
-    const handleError = (error) => {
-      console.error("Error generating question:", error);
-      setQuestions([{
-        question: "❌ Failed to generate question",
-        timestamp: new Date().toISOString(),
-        error: error.message || "Unknown error",
-      }]);
-    };
+    socket.on("connect", join);
+    socket.on("question-generated", onQuestion);
 
-    const handleOpponentDisconnected = () => {
-      alert("Your opponent has left the room. You will be redirected.");
-      // Cleanup Zego before navigating
-      if (zpRef.current) {
-        zpRef.current.destroy();
-        zpRef.current = null;
-      }
+    socket.on("opponentDisconnected", () => {
+      alert("Opponent left.");
       navigate("/");
-    };
-
-    socket.on("question-generated", handleQuestion);
-    socket.on("questionError", handleError);
-    socket.on("opponentDisconnected", handleOpponentDisconnected);
+    });
 
     return () => {
-      socket.off("question-generated", handleQuestion);
-      socket.off("questionError", handleError);
-      socket.off("opponentDisconnected", handleOpponentDisconnected);
+      socket.off("connect", join);
+      socket.off("question-generated", onQuestion);
+      socket.off("opponentDisconnected");
     };
   }, [socket, roomId, navigate]);
 
-  // --- 5. Zego Initialization (Callback Ref Pattern) ---
- 
-  const myMeeting = useCallback(async (element) => {
-    // 1. If we are unmounting (element is null) or re-mounting, destroy the old instance first.
-    if (zpRef.current) {
-      console.log("Destroying previous Zego instance...");
-      try {
-        zpRef.current.destroy();
-      } catch (err) {
-        console.warn("Error destroying Zego instance:", err);
-      }
-      zpRef.current = null;
-    }
-
-    // 2. If element exists and we have a user, create a new instance.
-    if (element && currentUser) {
-      console.log("Initializing Zego for user:", currentUser);
-      
-      const appId = 1891360647; 
-      const serverSecret = "cb5bed191b9d7447f597fe54dea09d16"; 
-      
-      const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-        appId,
-        serverSecret,
-        roomId,
-        Date.now().toString(),
-        currentUser
-      );
-
-      const zp = ZegoUIKitPrebuilt.create(kitToken);
-      zpRef.current = zp;
-
-      try {
-        zp.joinRoom({
-          container: element,
-          prejoinView: false,
-          turnOnCameraWhenJoining: true,
-          turnOnMicrophoneWhenJoining: true,
-          sharedLinks: [{
-            name: "Copy Link",
-            url: `${window.location.origin}/room/${roomId}`,
-          }],
-          scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
-          showScreenSharingButton: false,
-          onLeaveRoom: () => {
-            navigate('/');
-          },
-          // Add error handling callbacks if available or needed
-        });
-      } catch (error) {
-        console.error("Zego Join Room Failed:", error);
-      }
-    }
-  }, [currentUser, roomId, navigate]);
-
   return (
-    <>
-      <Navbar />
-      <div className="bg-black min-h-screen">
-        <div className="relative w-screen h-screen flex overflow-hidden pt-20">
-          {/* Video Call Container */}
-          <div className="w-[50vw] h-full bg-gray-900 relative">
-             {/* We conditionally render the DIV. 
-                 The 'ref' callback (myMeeting) will trigger ONLY when currentUser is ready 
-                 and the div is physically placed in the DOM. */}
-             {currentUser ? (
-               <div 
-                 ref={myMeeting} 
-                 className="w-full h-full"
-               />
-             ) : (
-               <div className="absolute inset-0 flex items-center justify-center text-white/50 bg-gray-900 z-10">
-                 Loading User Profile...
-               </div>
-             )}
-          </div>
-          
-          <div className="flex flex-col w-[50vw]">
-            {/* Questions Box */}
-            <div
-              className="w-full h-[50vh] p-6 overflow-y-auto border border-white/10"
-              style={{
-                backgroundColor: "rgba(0, 0, 0, 0.1)",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              <h2 className="text-xl font-bold mb-4 text-white">
-                AI CP/DSA Questions
-              </h2>
-              <ul className="space-y-4">
-                {questions.length > 0 &&
-                  (() => {
-                    const lastQuestion = questions[questions.length - 1];
-                    return (
-                      <li
-                        className="p-3 rounded shadow border border-white/10"
-                        style={{
-                          backgroundColor: "rgba(255, 255, 255, 0.05)",
-                          backdropFilter: "blur(5px)",
-                        }}
-                      >
-                        <div className="text-sm text-white/70 mb-1">
-                          Latest Question -{" "}
-                          {new Date(lastQuestion.timestamp).toLocaleTimeString()}
-                        </div>
-                        <div
-                          className="text-white/90"
-                          dangerouslySetInnerHTML={{
-                            __html: lastQuestion.question,
-                          }}
-                        />
-                      </li>
-                    );
-                  })()}
-              </ul>
+    <div className="flex flex-col h-screen bg-black overflow-hidden">
+      <main className="flex flex-1 pt-16 overflow-hidden">
+        {/* Left: Video & Chat (40% width) */}
+        <section className="w-[40%] border-r border-white/10 relative bg-gray-950">
+          {tokenError ? (
+            <div className="flex items-center justify-center h-full text-red-400 text-sm">
+              {tokenError}
             </div>
+          ) : agoraToken ? (
+            <AgoraRTCProvider client={agoraClient.current}>
+              <VideoCallInner
+                channelName={roomId}
+                token={agoraToken}
+                uid={agoraUid}
+                onLeave={() => navigate("/")}
+                socket={socket}
+                currentUser={currentUser}
+                roomId={roomId}
+              />
+            </AgoraRTCProvider>
+          ) : (
+            <div className="flex items-center justify-center h-full text-white/20 animate-pulse">
+              Initializing Stream...
+            </div>
+          )}
+        </section>
 
-            {/* Compiler Box */}
-            <div className="flex flex-wrap h-[50vh] w-full">
-              {compilerUsers ? (
-                <Compiler
-                  socket={socket}
-                  user1={compilerUsers.user1}
-                  user2={compilerUsers.user2}
-                  room={roomId}
-                  questions={questions}
-                />
-              ) : (
-                <div
-                  className="p-4 text-center w-full border border-white/10 flex items-center justify-center"
-                  style={{
-                    backgroundColor: "rgba(0, 0, 0, 0.1)",
-                    backdropFilter: "blur(10px)",
-                  }}
-                >
-                  <div className="text-white/80">Initializing compiler...</div>
-                </div>
+        {/* Right: Question & Code (60% width) */}
+        <section className="w-[60%] flex flex-col bg-[#0a0a0a]">
+          {/* Question Area */}
+          <div 
+            className="h-[35%] p-5 overflow-y-auto border-b border-white/10 bg-white/[0.02] select-none"
+            onCopy={(e) => {
+              e.preventDefault();
+              alert("Copying the problem statement is not allowed!");
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-widest text-[color:var(--color-primary)]">
+                Problem Statement
+              </h2>
+              {questions.length > 0 && (
+                <span className="text-[10px] text-white/30 font-mono">
+                  {new Date(
+                    questions[questions.length - 1].timestamp,
+                  ).toLocaleTimeString()}
+                </span>
               )}
             </div>
+
+            {questions.length > 0 ? (
+              <div
+                className="prose prose-invert prose-sm max-w-none text-white/80"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeQuestion(
+                    questions[questions.length - 1].question,
+                  ),
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-20 text-white/20 text-sm italic">
+                Generating problem...
+              </div>
+            )}
           </div>
-        </div>
-      </div>
-    </>
+
+          {/* Compiler Area */}
+          <div className="flex-1 relative">
+            {compilerUsers ? (
+              <Compiler
+                user1={compilerUsers.user1}
+                user2={compilerUsers.user2}
+                room={roomId}
+                questions={questions}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-white/20">
+                Loading Editor...
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+    </div>
   );
 };
 

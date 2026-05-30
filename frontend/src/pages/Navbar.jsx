@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import {
   SignedIn,
   SignedOut,
-  SignInButton,
   UserButton,
+  useClerk,
   useUser,
 } from "@clerk/clerk-react";
 import {
@@ -18,50 +18,63 @@ import {
   MobileNavMenu,
 } from "../components/ui/resizable-navbar.js";
 
+const SIGN_IN_BTN =
+  "relative z-20 cursor-pointer px-5 py-2 text-sm font-semibold text-white rounded-full " +
+  "bg-gradient-to-r from-purple-600 to-blue-600 " +
+  "hover:from-purple-500 hover:to-blue-500 " +
+  "transition-all duration-300 border border-white/20 " +
+  "shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 " +
+  "hover:scale-[1.02] active:scale-[0.98]";
+
+function SignInBtn({ className = "" }) {
+  const { openSignIn } = useClerk();
+  return (
+    <button
+      type="button"
+      className={`${SIGN_IN_BTN} ${className}`}
+      onClick={() => openSignIn()}
+    >
+      Sign In
+    </button>
+  );
+}
+
 export default function Navbar() {
-  const { isSignedIn } = useUser();
+  const { isLoaded } = useUser();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    {
-      name: "Home",
-      link: "/",
-    },
-    {
-      name: "Profile",
-      link: "/profile",
-    },
-    {
-      name: "Battle History",
-      link: "/battle-history",
-    },
+    { name: "Home", link: "/" },
+    { name: "Profile", link: "/profile" },
+    { name: "Battle History", link: "/battle-history" },
   ];
 
-  if (!isSignedIn) {
-    return (
-      <div className="flex justify-center items-center p-4">
-        <SignedOut>
-          <SignInButton />
-        </SignedOut>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative w-full bg-black">
+    <div className="relative w-full">
       <ResizableNavbar>
-        {/* Desktop Navigation */}
         <NavBody>
           <NavbarLogo />
           <NavItems items={navItems} />
-          <div className="flex items-center gap-4">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+          <div className="relative z-20 flex shrink-0 items-center gap-4">
+            {isLoaded && (
+              <>
+                <SignedIn>
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-9 h-9 ring-2 ring-purple-500/40 ring-offset-2 ring-offset-neutral-950",
+                      },
+                    }}
+                  />
+                </SignedIn>
+                <SignedOut>
+                  <SignInBtn />
+                </SignedOut>
+              </>
+            )}
           </div>
         </NavBody>
 
-        {/* Mobile Navigation */}
         <MobileNav>
           <MobileNavHeader>
             <NavbarLogo />
@@ -80,7 +93,7 @@ export default function Navbar() {
                 key={`mobile-link-${idx}`}
                 to={item.link}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="relative text-neutral-600 dark:text-neutral-300 hover:text-neutral-800"
+                className="relative text-neutral-300 hover:text-white transition-colors"
               >
                 <span className="block">{item.name}</span>
               </Link>
@@ -89,6 +102,9 @@ export default function Navbar() {
               <SignedIn>
                 <UserButton />
               </SignedIn>
+              <SignedOut>
+                <SignInBtn className="w-full" />
+              </SignedOut>
             </div>
           </MobileNavMenu>
         </MobileNav>

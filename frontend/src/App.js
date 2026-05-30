@@ -1,87 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
-import io from 'socket.io-client';
+import React, { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 
-import HomeSession from './pages/Room/HomeSession';
-import Home from './pages/Home';
-import Room from './pages/Room/Room';
-import Profile from './pages/Profile';
-import BattleHistory from './pages/BattleHistory';
-import { RoomDetailsProvider } from './RoomContext';
-import Navbar from './pages/Navbar';
-
-function Header() {
-  return (
-    <header className="p-4 border-b border-gray-300 flex justify-end">
-      <SignedOut>
-        <SignInButton mode="modal" />
-      </SignedOut>
-      <SignedIn>
-        <UserButton afterSignOutUrl="/" />
-      </SignedIn>
-    </header>
-  );
-}
+import Home from "./pages/Home";
+import Room from "./pages/Room/Room";
+import Profile from "./pages/Profile";
+import BattleHistory from "./pages/BattleHistory";
+import { RoomDetailsProvider } from "./RoomContext";
+import Navbar from "./pages/Navbar";
 
 function ProtectedRoute({ children }) {
   const { isSignedIn, isLoaded } = useUser();
-
   if (!isLoaded) return null;
-
   return isSignedIn ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
-  const [socketId, setSocketId] = useState(null);
-  const [socket, setSocket] = useState(null);
   const { isSignedIn } = useUser();
 
   useEffect(() => {
-    const socketConnection = io(
-      'https://zenith-4-0.onrender.com'
-
-    );
-    setSocket(socketConnection);
-
-    socketConnection.on('connect', () => {
-      setSocketId(socketConnection.id);
-      console.log(`Socket connected with ID: ${socketConnection.id}`);
-    });
-
-    return () => {
-      socketConnection.disconnect();
-    };
-  }, []);
-
-  // 💡 Clear localStorage when signed out
- useEffect(() => {
-  if (isSignedIn === false) {
-    console.log('User signed out. Clearing localStorage and reloading...');
-    localStorage.clear();
-
-    if (!sessionStorage.getItem('reloadedOnLogout')) {
-      sessionStorage.setItem('reloadedOnLogout', 'true');
-      window.location.reload();
-    } else {
-      sessionStorage.removeItem('reloadedOnLogout');
+    if (isSignedIn === false) {
+      localStorage.clear();
+      if (!sessionStorage.getItem("reloadedOnLogout")) {
+        sessionStorage.setItem("reloadedOnLogout", "true");
+        window.location.reload();
+      } else {
+        sessionStorage.removeItem("reloadedOnLogout");
+      }
     }
-  }
-}, []);
-
+  }, [isSignedIn]);
 
   return (
     <RoomDetailsProvider>
       <Router>
-        {/* <Header /> */}
         <Navbar />
         <Routes>
-          <Route path="/" element={<Home socketId={socketId} socket={socket} />} />
+          <Route path="/" element={<Home />} />
           <Route
             path="/room/:roomId"
             element={
               <ProtectedRoute>
-                <Room socketId={socketId} socket={socket} />
+                <Room />
               </ProtectedRoute>
             }
           />
@@ -93,11 +52,12 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/profile/:username" element={<Profile />} />
           <Route
             path="/profile"
             element={
               <ProtectedRoute>
-                <Profile socketId={socketId} socket={socket} />
+                <Profile />
               </ProtectedRoute>
             }
           />

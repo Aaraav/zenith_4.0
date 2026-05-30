@@ -3,116 +3,67 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/stateful-button";
 import { BackgroundBeamsWithCollision } from "../components/ui/background-beams-with-collision";
 import { useUser, SignInButton, SignedOut } from "@clerk/clerk-react";
-import axios from "axios";
+import { api } from "../lib/api";
+import { useRoomDetails } from "../RoomContext";
 
-// ✅ Removed `socketId` from props as it's redundant.
-// We can get the most current ID from the `socket` object itself.
-export default function Home({ socket }) {
+export default function Home() {
   const navigate = useNavigate();
-  const { user,isSignedIn } = useUser();
+  const { user, isSignedIn } = useUser();
+  const { socket } = useRoomDetails();
   const [name, setName] = useState("Guest");
   const [selectedTopic, setSelectedTopic] = useState("DSA");
-  const [ratings, setRatings] = useState([]);
-  const [averageRating, setAverageRating] = useState(0);
   const [roomId, setRoomId] = useState(null);
   const [matchedMsg, setMatchedMsg] = useState("");
   const [showUsernamePopup, setShowUsernamePopup] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  // ✅ Effect 1: Handles fetching user data.
-  // Why this is better: This effect now *only* runs when the user's sign-in
-  // status changes, which is the correct behavior.
   useEffect(() => {
     const fetchUsername = async () => {
-      console.log(user);
-      const clerkId = user?.id || localStorage.getItem("clerkId");
-      if (!isSignedIn || !clerkId) {
-        // Clean up state on sign-out
+      if (!isSignedIn || !user?.id) {
         setName("Guest");
-        setRatings([]);
         return;
       }
-
       try {
-        setLoading(true);
-        const response = await axios.get(
-          `https://zenith-4-0-http.onrender.com/api/users/getUser/${clerkId}`
-        );
-
+        const response = await api.get(`/api/users/getUser/${user.id}`);
         if (response.data.success && response.data.user) {
-          const user = response.data.user;
-          const username = user.username?.trim();
-          
-          if (username) {
-            setName(username);
-          }
-          setRatings(user.ratings || []);
-          localStorage.setItem("userdetails", JSON.stringify(user));
+          const u = response.data.user;
+          if (u.username?.trim()) setName(u.username.trim());
+          localStorage.setItem("userdetails", JSON.stringify(u));
         }
       } catch (err) {
-        console.error("❌ Failed to fetch user:", err);
-      } finally {
-        setLoading(false);
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch user:", err);
       }
     };
-
     fetchUsername();
-  }, [isSignedIn]);
+  }, [isSignedIn, user?.id]);
 
-  // ✅ Effect 2: Handles socket event listeners.
-  // Why this is better: Separating this from data fetching makes the code cleaner.
-  // It correctly sets up and tears down the listener when the socket connection changes.
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) return undefined;
 
-    const onRoomJoined = ({ roomId, users }) => {
-      console.log(`🎉 Matched and joined room: ${roomId} with users:`, users);
-      localStorage.setItem("socketId", socket.id);
-      setRoomId(roomId);
-      setMatchedMsg(`🎉 You have been matched with a user!`);
-      navigate(`/room/${roomId}`);
+    const onRoomJoined = ({ roomId: rid, users }) => {
+      // eslint-disable-next-line no-console
+      console.log(`Matched and joined room: ${rid} with users:`, users);
+      setRoomId(rid);
+      setMatchedMsg("🎉 You have been matched!");
+      navigate(`/room/${rid}`);
     };
 
     socket.on("roomJoined", onRoomJoined);
-
-    // Cleanup function to prevent memory leaks
-    return () => {
-      socket.off("roomJoined", onRoomJoined);
-    };
+    return () => socket.off("roomJoined", onRoomJoined);
   }, [socket, navigate]);
-
-  // ✅ Effect 3: Recalculates average rating. (No change needed)
-  useEffect(() => {
-    if (ratings.length > 0) {
-      const total = ratings.reduce((sum, r) => sum + r, 0);
-      setAverageRating(total / ratings.length);
-    } else {
-      setAverageRating(0);
-    }
-  }, [ratings]);
 
   const handleSendData = () => {
     if (name === "Guest" || !name.trim()) {
       setShowUsernamePopup(true);
-      return;
+      return undefined;
     }
-
-    if (!socket || !selectedTopic || averageRating === undefined) {
-      console.error("⚠️ Invalid data or socket connection");
-      return;
+    if (!socket || !selectedTopic) {
+      // eslint-disable-next-line no-console
+      console.error("Socket not ready or topic missing");
+      return undefined;
     }
-
     localStorage.setItem("selectedTopic", selectedTopic);
-
-    // ✅ Use `socket.id` directly for the most up-to-date ID.
-    socket.emit("joinQueue", {
-      username: name,
-      topic: selectedTopic,
-      averageRating,
-      socketId: socket.id,
-    });
-
-    // Keep the button in a loading state until a match is found and we navigate away.
+    socket.emit("joinQueue", { topic: selectedTopic });
     return new Promise(() => {});
   };
 
@@ -121,11 +72,6 @@ export default function Home({ socket }) {
     navigate("/profile");
   };
 
-  const handleClosePopup = () => {
-    setShowUsernamePopup(false);
-  };
-
-  // The JSX remains unchanged as it was already well-structured.
   return (
     <>
       <BackgroundBeamsWithCollision className="min-h-screen h-[100vh] absolute top-0">
@@ -140,23 +86,18 @@ export default function Home({ socket }) {
             <h1 className="text-3xl font-bold text-center mb-6 text-white">
               Start Competing
             </h1>
-
             <div className="text-center mt-10 text-xl font-bold text-white">
               Hello, {name}!
             </div>
-
             {matchedMsg && (
               <div className="text-green-400 text-center mt-6 font-semibold">
                 {matchedMsg}
               </div>
             )}
-
             {!roomId && (
               <div className="mt-6 text-center">
                 {isSignedIn ? (
-                  <Button onClick={handleSendData}>
-                    Join Matchmaking Queue
-                  </Button>
+                  <Button onClick={handleSendData}>Join Matchmaking Queue</Button>
                 ) : (
                   <SignedOut>
                     <SignInButton mode="modal">
@@ -172,26 +113,10 @@ export default function Home({ socket }) {
         </div>
       </BackgroundBeamsWithCollision>
 
-      {/* Username Required Popup */}
       {showUsernamePopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="text-center">
-              <div className="mb-4">
-                <svg
-                  className="mx-auto h-12 w-12 text-yellow-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4">
                 Username Required
               </h3>
@@ -207,7 +132,7 @@ export default function Home({ socket }) {
                   Go to Profile
                 </button>
                 <button
-                  onClick={handleClosePopup}
+                  onClick={() => setShowUsernamePopup(false)}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-400 transition-colors"
                 >
                   Cancel
