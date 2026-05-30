@@ -1,17 +1,23 @@
 const mongoose = require('mongoose');
 
-// Connect to MongoDB
-mongoose.connect("mongodb+srv://aaraav2810:aaraav2810@zenith.mzeyjhr.mongodb.net/zenith");
-
 const userSchema = new mongoose.Schema({
   clerkId: { type: String, required: true, unique: true },
-  username: { type: String },
+  username: {
+    type: String,
+    unique: true,
+  
+  },
   fullName: { type: String },
   email: { type: String, required: true, unique: true },
   imageUrl: { type: String },
   createdAt: { type: Date, required: true },
+  finalRating: { type: Number, default: 1000 },
+  platformUsernames: {
+    codeforces:   { type: String, default: '' },
+    codechef:     { type: String, default: '' },
+    leetcode:     { type: String, default: '' },
+    codingninjas: { type: String, default: '' },
+  },
 }, { timestamps: true });
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User; // CommonJS export
+module.exports = mongoose.model('User', userSchema);

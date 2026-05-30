@@ -1,24 +1,49 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@clerk/backend": "^1.21.0",
+    "@google/genai": "^1.30.0",
+    "agora-access-token": "^2.0.4",
+    "axios": "^1.16.0",
     "bcryptjs": "^3.0.2",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.4.1",
     "express-validator": "^7.2.1",
+    "groq-sdk": "^1.1.2",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.2",
+    "isomorphic-dompurify": "^2.16.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.13.2"
+    "mongoose": "^8.13.2",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "pino-pretty": "^11.3.0",
+    "rate-limiter-flexible": "^5.0.5",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "ioredis-mock": "^8.9.0",
+    "mongodb-memory-server": "^10.1.2",
+    "nodemon": "^3.1.10",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

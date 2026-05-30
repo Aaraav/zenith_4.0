@@ -1,50 +1,68 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+import React, { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
 
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import Home from './pages/Home';
+import Home from "./pages/Home";
+import Room from "./pages/Room/Room";
+import Profile from "./pages/Profile";
+import BattleHistory from "./pages/BattleHistory";
+import { RoomDetailsProvider } from "./RoomContext";
+import Navbar from "./pages/Navbar";
 
-function Header() {
-  return (
-    <header style={{ padding: '1rem', borderBottom: '1px solid #ddd' }}>
-      <SignedOut>
-        <SignInButton />
-      </SignedOut>
-      <SignedIn>
-        <UserButton />
-      </SignedIn>
-    </header>
-  );
-}
-
-function AuthRedirect() {
-  const { isSignedIn } = useUser();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isSignedIn) {
-      localStorage.clear();
-      navigate('/profile');
-    }
-  }, [isSignedIn, navigate]);
-
-  return null;
+function ProtectedRoute({ children }) {
+  const { isSignedIn, isLoaded } = useUser();
+  if (!isLoaded) return null;
+  return isSignedIn ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
+  const { isSignedIn } = useUser();
+
+  useEffect(() => {
+    if (isSignedIn === false) {
+      localStorage.clear();
+      if (!sessionStorage.getItem("reloadedOnLogout")) {
+        sessionStorage.setItem("reloadedOnLogout", "true");
+        window.location.reload();
+      } else {
+        sessionStorage.removeItem("reloadedOnLogout");
+      }
+    }
+  }, [isSignedIn]);
+
   return (
-    <>
+    <RoomDetailsProvider>
       <Router>
-        <Header />
-        <AuthRedirect />
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/room/:roomId"
+            element={
+              <ProtectedRoute>
+                <Room />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/battle-history"
+            element={
+              <ProtectedRoute>
+                <BattleHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/profile/:username" element={<Profile />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
-    </>
+    </RoomDetailsProvider>
   );
 }
