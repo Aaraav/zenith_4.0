@@ -174,7 +174,9 @@ function validateQuestionSchema(q) {
   if (!q.starterCode || typeof q.starterCode !== 'object') {
     throw new Error('Invalid question: starterCode is required');
   }
-  for (const tc of [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])]) {
+  const visibleTestCases = Array.isArray(q.visibleTestCases) ? q.visibleTestCases : [];
+  const hiddenTestCases = Array.isArray(q.hiddenTestCases) ? q.hiddenTestCases : [];
+  for (const tc of [...visibleTestCases, ...hiddenTestCases]) {
     if (!tc.input || tc.output === undefined) {
       throw new Error('Invalid question: test cases need input and output');
     }
@@ -280,20 +282,32 @@ Rules for strengths/weaknesses arrays:
 /**
  * Parse raw Groq evaluation JSON into a normalized result object.
  * @param {Record<string, unknown>} parsed
+ * @returns {{
+ *   user1Analysis: string,
+ *   user2Analysis: string,
+ *   user1Improvements: string,
+ *   user2Improvements: string,
+ *   user1Strengths: string[],
+ *   user1Weaknesses: string[],
+ *   user2Strengths: string[],
+ *   user2Weaknesses: string[],
+ *   user1Increment: number,
+ *   user2Increment: number,
+ * }}
  */
 function parseEvaluationResult(parsed) {
   const toArray = (v) => (Array.isArray(v) ? v.filter(Boolean).map(String) : []);
   return {
-    user1Analysis: parsed.user1Analysis || 'Evaluation complete.',
-    user2Analysis: parsed.user2Analysis || 'Evaluation complete.',
-    user1Improvements: parsed.user1Improvements || 'Keep practicing!',
-    user2Improvements: parsed.user2Improvements || 'Keep practicing!',
+    user1Analysis: String(parsed.user1Analysis || 'Evaluation complete.'),
+    user2Analysis: String(parsed.user2Analysis || 'Evaluation complete.'),
+    user1Improvements: String(parsed.user1Improvements || 'Keep practicing!'),
+    user2Improvements: String(parsed.user2Improvements || 'Keep practicing!'),
     user1Strengths: toArray(parsed.user1Strengths),
     user1Weaknesses: toArray(parsed.user1Weaknesses),
     user2Strengths: toArray(parsed.user2Strengths),
     user2Weaknesses: toArray(parsed.user2Weaknesses),
-    user1Increment: parsed.user1Increment ?? 15,
-    user2Increment: parsed.user2Increment ?? 15,
+    user1Increment: Number(parsed.user1Increment ?? 15),
+    user2Increment: Number(parsed.user2Increment ?? 15),
   };
 }
 

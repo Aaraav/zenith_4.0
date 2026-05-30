@@ -28,6 +28,7 @@ function getRedis() {
    *   set: (key: string, value: string, ttl?: number) => Promise<string>;
    *   get: (key: string) => Promise<string | null>;
    *   del: (key: string) => Promise<number>;
+   *   keys: (pattern: string) => Promise<string[]>;
    *   expire: (key: string, seconds: number) => Promise<number>;
    * }}
    */
@@ -133,6 +134,14 @@ function getRedis() {
       });
       const json = await res.json();
       return json.result || 0;
+    },
+
+    async keys(pattern) {
+      const res = await fetch(`${upstashUrl}/keys/${encodeURIComponent(pattern)}`, {
+        headers: { Authorization: `Bearer ${upstashToken}` },
+      });
+      const json = await res.json();
+      return json.result || [];
     },
 
     async expire(key, seconds) {

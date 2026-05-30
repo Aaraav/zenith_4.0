@@ -121,6 +121,8 @@ BattleHistorySchema.index({ "users.username": 1, createdAt: -1 }); // User histo
 BattleHistorySchema.index({ createdAt: -1 }); // Recent battles
 BattleHistorySchema.index({ averageRating: 1 }); // Rating-based queries
 
-const BattleHistory = mongoose.model("BattleHistory", BattleHistorySchema);
+/** @type {import('mongoose').Model<any>} */
+const BattleHistory = mongoose.models.BattleHistory
+  || mongoose.model('BattleHistory', BattleHistorySchema);
 
 module.exports = BattleHistory;

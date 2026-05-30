@@ -7,7 +7,8 @@ let BattleHistory;
 beforeAll(async () => {
   const mod = await import('../src/app.js');
   app = mod.createApp().app;
-  BattleHistory = (await import('../models/battleHistory.js')).default;
+  const battleMod = await import('../models/battleHistory.js');
+  BattleHistory = battleMod.default || battleMod;
 
   // Seed 25 battles for "alice" so we can exercise pagination.
   await BattleHistory.deleteMany({});

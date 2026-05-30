@@ -1,6 +1,15 @@
 import { defineConfig } from 'vitest/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@clerk/backend': path.resolve(__dirname, 'tests/mocks/clerkBackend.cjs'),
+    },
+  },
   test: {
     environment: 'node',
     globals: true,
