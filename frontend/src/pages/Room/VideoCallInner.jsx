@@ -125,14 +125,10 @@ export default function VideoCallInner({
   const [chatOpen, setChatOpen]   = useState(false);
   const [messages, setMessages]   = useState([]);
   const [unread, setUnread]       = useState(0);
-  const [mounted, setMounted]     = useState(false);
 
   const { localMicrophoneTrack } = useLocalMicrophoneTrack();
   const { localCameraTrack }     = useLocalCameraTrack();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useJoin({ appid: APP_ID, channel: channelName, token, uid }, !!token);
   usePublish([localMicrophoneTrack, localCameraTrack]);

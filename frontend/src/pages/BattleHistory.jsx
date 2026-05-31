@@ -15,10 +15,7 @@ import {
   Zap, 
   Code, 
   Brain, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  X,
-  AlertTriangle
+  X
 } from "lucide-react";
 import RatingProgressChart, { buildRatingProgressData } from "../components/RatingProgressChart";
 
@@ -29,7 +26,6 @@ export default function BattleHistory() {
   const [stats, setStats] = useState(null);
   const [battles, setBattles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [username, setUsername] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -49,7 +45,6 @@ export default function BattleHistory() {
       try {
         if (pageNum === 1) setLoading(true);
         else setLoadingMore(true);
-        setError(null);
 
         const battlesPromise = api.get(
           `/api/battles/user/${username}?page=${pageNum}&limit=${PAGE_SIZE}`,
@@ -67,8 +62,7 @@ export default function BattleHistory() {
         setTotalPages(battlesResponse.data.pagination?.totalPages || 1);
         setPage(pageNum);
       } catch (err) {
-        setError("Failed to fetch battle data. The server might be busy.");
-        console.error(err);
+        console.error("Failed to fetch battle data:", err);
       } finally {
         setLoading(false);
         setLoadingMore(false);

@@ -4,7 +4,7 @@ import { CompilerButton } from "../components/ui/compiler-button";
 import MatchAnalysisModal from "../components/MatchAnalysisModal";
 import { useRoomDetails } from "../RoomContext";
 import { api } from "../lib/api";
-import { ChevronRight, Play, CheckCircle, X } from "lucide-react";
+import { Play, CheckCircle, X } from "lucide-react";
 
 function normalizeTestOutput(value) {
   let s = String(value ?? "").trim();

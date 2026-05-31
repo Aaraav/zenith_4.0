@@ -33,13 +33,6 @@ const CompilerButton = React.forwardRef(
       }
     };
 
-    const handleCancel = (e) => {
-      e.stopPropagation(); // Prevent the main button click from firing
-      if (buttonState === "loading") {
-        setButtonState("idle");
-      }
-    };
-
     const getButtonContent = () => {
       switch (buttonState) {
         case "loading":

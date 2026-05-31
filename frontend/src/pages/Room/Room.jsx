@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AgoraRTC, { AgoraRTCProvider } from "agora-rtc-react";
 import { useRoomDetails } from "../../RoomContext";
@@ -9,7 +9,7 @@ import { sanitizeQuestion } from "../../lib/sanitize";
 import Compiler from "../Compiler";
 import VideoCallInner from "./VideoCallInner"; // Moved to separate for clarity
 
-const APP_ID = process.env.REACT_APP_AGORA_APP_ID;
+
 
 const Room = () => {
   const { roomId } = useParams();

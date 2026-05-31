@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { RoomDetailsProvider } from './RoomContext';
 import { ClerkProvider } from '@clerk/clerk-react';
 import reportWebVitals from './reportWebVitals';
 

@@ -11,7 +11,7 @@ export default function Home() {
   const { user, isSignedIn } = useUser();
   const { socket } = useRoomDetails();
   const [name, setName] = useState("Guest");
-  const [selectedTopic, setSelectedTopic] = useState("DSA");
+  const [selectedTopic] = useState("DSA");
   const [roomId, setRoomId] = useState(null);
   const [matchedMsg, setMatchedMsg] = useState("");
   const [showUsernamePopup, setShowUsernamePopup] = useState(false);
